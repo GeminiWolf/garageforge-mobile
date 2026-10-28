@@ -10,7 +10,7 @@ import { PlusIcon } from 'lucide-react-native';
 
 type HeaderProps = BottomTabHeaderProps;
 
-export default function Header({ route, navigation }: HeaderProps) {
+export default function Header({ route, navigation, options }: HeaderProps) {
   const { top } = useSafeAreaInsets();
 
   const addVehicle = () => {
@@ -33,16 +33,33 @@ export default function Header({ route, navigation }: HeaderProps) {
     return null;
   };
 
-  return (
-    <View style={[styles.container, { paddingTop: top }]}>
-      <View style={[styles.row, { gap: spacing.sm }]}>
-        <View style={styles.titleContainer}>
+  const renderTitle = () => {
+    if (route.name === 'GarageTab') {
+      return (
+        <>
           <Text size="2xl" weight="bold">
             GARAGE
           </Text>
           <Text size="2xl" weight="bold" tone="accent">
             FORGE
           </Text>
+        </>
+      );
+    }
+
+    const title = options.title || route.name;
+    return (
+      <Text size="2xl" weight="bold" tone="accent">
+        {title}
+      </Text>
+    );
+  };
+
+  return (
+    <View style={[styles.container, { paddingTop: top }]}>
+      <View style={[styles.row, { gap: spacing.sm }]}>
+        <View style={styles.titleContainer}>
+          {renderTitle()}
         </View>
         <Badge visible={false} size={12} style={styles.badge}>
           PRO

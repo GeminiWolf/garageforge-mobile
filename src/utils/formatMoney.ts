@@ -6,11 +6,32 @@ const SYMBOLS: Record<CurrencyCode, string> = {
   EUR: '€',
 };
 
-function formatAmount(amount: number): string {
-  const rounded = Math.round(amount * 100) / 100;
-  const [intPart, decPart] = String(rounded).split('.');
-  const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return decPart != null ? `${withCommas}.${decPart}` : withCommas;
+const LOCALE_MAP: Record<CurrencyCode, string> = {
+  ZAR: 'en-ZA',
+  USD: 'en-US',
+  EUR: 'en-ZA',
+};
+
+const formatters: Map<CurrencyCode, Intl.NumberFormat> = new Map();
+
+function getFormatter(currency: CurrencyCode): Intl.NumberFormat {
+  if (!formatters.has(currency)) {
+    try {
+      const locale = LOCALE_MAP[currency];
+      const formatter = new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      formatters.set(currency, formatter);
+    } catch {
+      const fallback = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      formatters.set(currency, fallback);
+    }
+  }
+  return formatters.get(currency)!;
 }
 
 export function getCurrencySymbol(currency: CurrencyCode = 'ZAR'): string {
@@ -22,7 +43,9 @@ export function formatMoney(
   currency: CurrencyCode = 'ZAR',
 ): string {
   const safe = Number.isFinite(amount) ? amount : 0;
-  return `${SYMBOLS[currency]}${formatAmount(safe)}`;
+  const formatter = getFormatter(currency);
+  const formatted = formatter.format(safe);
+  return `${SYMBOLS[currency]}${formatted}`;
 }
 
 export function parseMonthlyBudget(value: string): number | null {

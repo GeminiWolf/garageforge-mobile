@@ -9,6 +9,7 @@ import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Input } from '../../components/common/Input';
 import { ProgressBar } from '../../components/common/ProgressBar';
+import { SkeletonList } from '../../components/common/Skeleton';
 import { Text } from '../../components/common/Text';
 import type {
   GarageStackParamList,
@@ -33,6 +34,7 @@ export function BudgetScreen() {
   const trackedParts = useGarageStore(s => s.trackedParts);
   const settings = useGarageStore(s => s.settings);
   const updateSettings = useGarageStore(s => s.updateSettings);
+  const hasHydrated = useGarageStore(s => s.hasHydrated);
   const { totalNeeded, monthlyCap, overBy, isOverCap, isSpendingAlert, usagePercent } =
     useBudgetOverview(trackedParts);
 
@@ -63,7 +65,11 @@ export function BudgetScreen() {
         </Text>
       </View>
 
-      {vehicles.length === 0 ? (
+      {!hasHydrated ? (
+        <View style={styles.sidePadding} accessibilityLiveRegion="polite" accessibilityLabel="Loading budget">
+          <SkeletonList count={4} itemHeight={80} />
+        </View>
+      ) : vehicles.length === 0 ? (
         <EmptyState
           title="No vehicles yet"
           subtitle="Budget rollup needs at least one car in the garage."

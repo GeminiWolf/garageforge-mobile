@@ -82,17 +82,19 @@ export default function ApiConnectionScreen() {
         <Card gap="md" radius="md" padding="md">
           <View style={styles.statusRow}>
             <Text tone="white">API Connection Status</Text>
-            <Badge
-              label={PROBE_BADGE[probe].label}
-              tone={PROBE_BADGE[probe].tone}
-              leftSection={
-                probe === 'checking' ? (
-                  <ActivityIndicator size="small" color={colors.info} />
-                ) : (
-                  <View style={[styles.statusDot, DOT_STYLE[probe]]} />
-                )
-              }
-            />
+            <View accessibilityLiveRegion="polite">
+              <Badge
+                label={PROBE_BADGE[probe].label}
+                tone={PROBE_BADGE[probe].tone}
+                leftSection={
+                  probe === 'checking' ? (
+                    <ActivityIndicator size="small" color={colors.info} />
+                  ) : (
+                    <View style={[styles.statusDot, DOT_STYLE[probe]]} />
+                  )
+                }
+              />
+            </View>
           </View>
 
           <Text>Base Endpoint</Text>

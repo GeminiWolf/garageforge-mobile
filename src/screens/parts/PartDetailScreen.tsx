@@ -133,9 +133,11 @@ export function PartDetailScreen({navigation, route}: Props) {
           </Text>
         </View>
         {savedVisible ? (
-          <Text variant="caption" tone="accent" weight="semibold">
-            Saved
-          </Text>
+          <View accessibilityLiveRegion="polite">
+            <Text variant="caption" tone="accent" weight="semibold">
+              Saved
+            </Text>
+          </View>
         ) : null}
       </View>
 

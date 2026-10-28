@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import {colors, radius as themeRadius, spacing, typography} from '../../theme';
+import {withOpacity} from '../../utils/withOpacity';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type Size = 'sm' | 'md' | 'lg';
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   danger: {
-    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    backgroundColor: withOpacity(colors.danger, 0.15),
     borderWidth: 1,
     borderColor: colors.danger,
   },
@@ -160,6 +161,6 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   labelDanger: {
-    color: colors.danger,
+    color: colors.dangerText,
   },
 });

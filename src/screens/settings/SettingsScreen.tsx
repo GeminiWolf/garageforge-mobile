@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   dot_idle: {
-    backgroundColor: colors.slate400,
+    backgroundColor: colors.borderSubtle,
   },
   dot_ok: {
     backgroundColor: colors.accent,

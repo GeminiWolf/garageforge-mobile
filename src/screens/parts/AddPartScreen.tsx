@@ -33,7 +33,7 @@ type Tab = 'browse' | 'manual';
 
 const PRIORITIES: PartPriority[] = ['urgent', 'soon', 'someday'];
 const STATUSES: PartStatus[] = ['needed', 'sourcing', 'ordered', 'installed'];
-const SAVE_VALIDATION_ERROR = 'Name and part number are required.';
+const SAVE_VALIDATION_ERROR = 'Name is required.';
 
 export function AddPartScreen({navigation, route}: Props) {
   const { vehicleId } = route.params;
@@ -111,7 +111,7 @@ export function AddPartScreen({navigation, route}: Props) {
   };
 
   const save = () => {
-    if (!name.trim() || !partNumber.trim()) {
+    if (!name.trim()) {
       setError(SAVE_VALIDATION_ERROR);
       return;
     }

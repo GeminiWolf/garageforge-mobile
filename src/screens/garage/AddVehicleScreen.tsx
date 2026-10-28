@@ -278,6 +278,7 @@ export function AddVehicleScreen({navigation}: Props) {
       model: selectedModel.name,
       trim: selectedVariant.trim,
       modelYearId: selectedModelYear.id,
+      vehicleVariantId: Number(selectedVariant.id),
     });
     navigation.replace('CarDashboard', {vehicleId: id});
   };

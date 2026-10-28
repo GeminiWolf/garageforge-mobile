@@ -11,6 +11,7 @@ export type Vehicle = {
   trim: string;
   engine?: string;
   modelYearId: string;
+  vehicleVariantId?: number;
   vin?: string;
 };
 

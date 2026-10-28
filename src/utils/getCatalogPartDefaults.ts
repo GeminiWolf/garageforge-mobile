@@ -6,7 +6,7 @@ export function getCatalogPartDefaults(
 ) {
   return {
     name: catalog.name,
-    partNumber: catalog.id,
+    partNumber: catalog.part_number || '',
     category,
   };
 }

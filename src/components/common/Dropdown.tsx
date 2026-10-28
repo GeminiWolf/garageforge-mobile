@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.slate500,
+    borderColor: colors.border,
     borderRadius: radius.md,
   },
   fieldOpen: {

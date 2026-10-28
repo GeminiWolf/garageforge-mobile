@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.bg,
     borderBottomWidth: 0.5,
-    borderBottomColor: colors.slate500,
+    borderBottomColor: colors.borderSubtle,
   },
   titleContainer: {
     gap: spacing.sm,

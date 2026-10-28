@@ -69,7 +69,7 @@ function MainTabs() {
         header: renderTabHeader,
         tabBarStyle: {
           backgroundColor: colors.bg,
-          borderTopColor: colors.slate400,
+          borderTopColor: colors.borderSubtle,
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textDim,

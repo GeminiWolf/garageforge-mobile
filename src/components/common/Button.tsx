@@ -161,6 +161,6 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   labelDanger: {
-    color: colors.danger,
+    color: colors.dangerText,
   },
 });

@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: colors.slate400,
+    borderColor: colors.border,
     backgroundColor: 'transparent',
   },
   checked: {

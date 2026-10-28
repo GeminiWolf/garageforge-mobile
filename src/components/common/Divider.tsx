@@ -12,7 +12,7 @@ type Props = {
 
 export function Divider({
   thickness = 0.5,
-  color = colors.slate400,
+  color = colors.borderSubtle,
   vertical = false,
   spacing: gap = spacing.md,
   style,

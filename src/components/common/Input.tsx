@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.slate500,
+    borderColor: colors.border,
     gap: spacing.sm,
   },
   fieldFocused: {

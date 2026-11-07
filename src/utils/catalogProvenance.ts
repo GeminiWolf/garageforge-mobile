@@ -12,6 +12,8 @@ export type CatalogProvenance = {
   independentlyVerified: boolean;
 };
 
+export const CATALOGUE_MARKED_VERIFIED_LABEL = 'Catalogue marked verified';
+
 const CATALOG_CONFIDENCE_VALUES: CatalogConfidence[] = [
   'estimated',
   'verified',
@@ -27,6 +29,30 @@ function isEstimatedSource(source: string | null | undefined): boolean {
   return (
     typeof source === 'string' && source.trim().toLowerCase() === 'estimated'
   );
+}
+
+function isHostnameLikeSource(source: string): boolean {
+  const value = source.trim().toLowerCase();
+  if (!value) {
+    return false;
+  }
+  if (value.includes('://') || value.includes('/') || value.includes(':')) {
+    return true;
+  }
+  return value.includes('.') && !/\s/.test(value);
+}
+
+function isClearClassificationSource(
+  source: string | null | undefined,
+): boolean {
+  if (typeof source !== 'string') {
+    return false;
+  }
+  const value = source.trim();
+  if (!value || isEstimatedSource(value) || isHostnameLikeSource(value)) {
+    return false;
+  }
+  return /^[a-z0-9][a-z0-9_-]*$/i.test(value);
 }
 
 function normalizeConfidence(
@@ -45,15 +71,24 @@ export function resolveCatalogProvenance(
   const fromField = normalizeConfidence(input.catalog_confidence);
   const estimated =
     fromField === 'estimated' || isEstimatedSource(input.source);
-  const confidence: CatalogConfidence = estimated
-    ? 'estimated'
-    : fromField ?? 'unknown';
 
-  // is_verified and source hostnames are not independent confirmation.
+  let confidence: CatalogConfidence;
+  if (estimated) {
+    confidence = 'estimated';
+  } else if (fromField) {
+    confidence = fromField;
+  } else if (
+    input.is_verified === true &&
+    isClearClassificationSource(input.source)
+  ) {
+    confidence = 'verified';
+  } else {
+    confidence = 'unknown';
+  }
+
+  // independently_verified is a stored catalogue assertion, not an audit we did.
   const independentlyVerified =
-    confidence !== 'estimated' &&
-    confidence !== 'unverified' &&
-    input.independently_verified === true;
+    !estimated && input.independently_verified === true;
 
   return { confidence, independentlyVerified };
 }
@@ -67,11 +102,11 @@ export function getCatalogProvenanceLabel(
   if (provenance.confidence === 'unverified') {
     return 'Unverified';
   }
-  if (provenance.independentlyVerified) {
-    return 'Independently verified';
-  }
   if (provenance.confidence === 'unknown') {
     return 'Unknown';
+  }
+  if (provenance.confidence === 'verified') {
+    return CATALOGUE_MARKED_VERIFIED_LABEL;
   }
   return null;
 }
@@ -79,14 +114,11 @@ export function getCatalogProvenanceLabel(
 export function getStoredVehicleProvenanceLabel(
   vehicle: Pick<Vehicle, 'catalogConfidence' | 'independentlyVerified'>,
 ): string | null {
-  if (
-    vehicle.catalogConfidence == null &&
-    vehicle.independentlyVerified == null
-  ) {
+  if (vehicle.catalogConfidence == null) {
     return null;
   }
   return getCatalogProvenanceLabel({
-    confidence: vehicle.catalogConfidence ?? 'unknown',
-    independentlyVerified: vehicle.independentlyVerified === true,
+    confidence: vehicle.catalogConfidence,
+    independentlyVerified: false,
   });
 }

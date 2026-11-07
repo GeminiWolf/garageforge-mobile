@@ -1,4 +1,8 @@
 import type { VehicleVariant } from '../types';
+import {
+  CATALOGUE_MARKED_VERIFIED_LABEL,
+  getCatalogProvenanceLabel,
+} from '../utils/catalogProvenance';
 import { getCategories, getParts, mapCategory, mapVariant } from './api';
 
 jest.mock('react-native-blob-util', () => ({
@@ -95,6 +99,51 @@ describe('mapVariant', () => {
     );
     expect(mapped.catalogConfidence).toBe('estimated');
     expect(mapped.independentlyVerified).toBe(false);
+    expect(
+      getCatalogProvenanceLabel({
+        confidence: mapped.catalogConfidence,
+        independentlyVerified: mapped.independentlyVerified,
+      }),
+    ).toBe('Estimated');
+  });
+
+  it('maps catalog_confidence verified to catalogue marked verified, not independent audit wording', () => {
+    const mapped = mapVariant(
+      variantFixture({
+        catalog_confidence: 'verified',
+        independently_verified: true,
+        is_verified: true,
+      }),
+    );
+    expect(mapped.catalogConfidence).toBe('verified');
+    expect(
+      getCatalogProvenanceLabel({
+        confidence: mapped.catalogConfidence,
+        independentlyVerified: mapped.independentlyVerified,
+      }),
+    ).toBe(CATALOGUE_MARKED_VERIFIED_LABEL);
+    expect(
+      getCatalogProvenanceLabel({
+        confidence: mapped.catalogConfidence,
+        independentlyVerified: mapped.independentlyVerified,
+      }),
+    ).not.toMatch(/independently/i);
+  });
+
+  it('maps legacy is_verified with a clear non-hostname source as catalogue marked verified', () => {
+    const mapped = mapVariant(
+      variantFixture({
+        source: 'vpic',
+        is_verified: true,
+      }),
+    );
+    expect(mapped.catalogConfidence).toBe('verified');
+    expect(
+      getCatalogProvenanceLabel({
+        confidence: mapped.catalogConfidence,
+        independentlyVerified: mapped.independentlyVerified,
+      }),
+    ).toBe(CATALOGUE_MARKED_VERIFIED_LABEL);
   });
 });
 

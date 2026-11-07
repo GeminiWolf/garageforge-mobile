@@ -14,6 +14,7 @@ import type {
   VehicleVariant,
   YearOption,
 } from '../types';
+import { resolveCatalogProvenance } from '../utils/catalogProvenance';
 import type { GarageExportPayload } from '../utils/garageExport';
 import {
   arrayBufferToBase64,
@@ -63,7 +64,14 @@ export function mapPart(raw: CatalogPart): CatalogPartOption {
 }
 
 export function mapVariant(raw: VehicleVariant): VariantOption {
-  return { ...raw, id: String(raw.id), name: raw.trim };
+  const provenance = resolveCatalogProvenance(raw);
+  return {
+    ...raw,
+    id: String(raw.id),
+    name: raw.trim,
+    catalogConfidence: provenance.confidence,
+    independentlyVerified: provenance.independentlyVerified,
+  };
 }
 
 let apiBearerToken = '';

@@ -12,10 +12,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontFamily, radius, spacing, typography } from '../../theme';
 import { WINDOW_HEIGHT } from '../../utils/device';
 import ButtonIcon from './ButtonIcon';
+import { getListItemAccessibilityLabel } from './listHelpers';
 
 export type SearchableOption = {
   key: string;
   label: string;
+  detail?: string;
 };
 
 type Props = {
@@ -72,7 +74,10 @@ export function SearchableBottomSheet({
           onClose();
         }}
         accessibilityRole="button"
-        accessibilityLabel={item.label}
+        accessibilityLabel={getListItemAccessibilityLabel(
+          item.label,
+          item.detail,
+        )}
         accessibilityState={{ selected }}
       >
         <Text
@@ -80,6 +85,9 @@ export function SearchableBottomSheet({
         >
           {item.label}
         </Text>
+        {item.detail ? (
+          <Text style={styles.optionDetail}>{item.detail}</Text>
+        ) : null}
       </Pressable>
     );
   };
@@ -216,5 +224,10 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: colors.accent,
     fontFamily: fontFamily.semibold,
+  },
+  optionDetail: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

@@ -10,6 +10,7 @@ import { Banknote } from 'lucide-react-native';
 import { useGarageStore } from '../../store/garageStore';
 import { formatMoney } from '../../utils/formatMoney';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
+import { getStoredVehicleProvenanceLabel } from '../../utils/catalogProvenance';
 
 type Props = {
   vehicle: Vehicle;
@@ -27,6 +28,7 @@ export default function VehicleDashboardCard({ vehicle }: Props) {
   );
 
   const { monthlyCap } = useBudgetOverview(parts);
+  const provenanceLabel = getStoredVehicleProvenanceLabel(vehicle);
 
   return (
     <Card padding={spacing.md} gap={spacing.sm}>
@@ -34,6 +36,11 @@ export default function VehicleDashboardCard({ vehicle }: Props) {
         {vehicle.year} {vehicle.make}
       </Text>
       <Text size="sm">{vehicle.trim}</Text>
+      {provenanceLabel ? (
+        <Text size="sm" tone="muted">
+          {provenanceLabel}
+        </Text>
+      ) : null}
       <Divider spacing={spacing.xs} thickness={0.2} />
       <View>
         <Badge

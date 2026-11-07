@@ -2,6 +2,11 @@ export type PartPriority = 'urgent' | 'soon' | 'someday';
 export type PartStatus = 'needed' | 'sourcing' | 'ordered' | 'installed';
 export type CurrencyCode = 'ZAR' | 'USD' | 'EUR';
 export type UnitSystem = 'metric' | 'imperial';
+export type CatalogConfidence =
+  | 'estimated'
+  | 'verified'
+  | 'unverified'
+  | 'unknown';
 
 export type Vehicle = {
   id: string;
@@ -13,6 +18,8 @@ export type Vehicle = {
   modelYearId: string;
   vehicleVariantId?: number;
   vin?: string;
+  catalogConfidence?: CatalogConfidence;
+  independentlyVerified?: boolean;
 };
 
 export type TrackedPart = {
@@ -92,12 +99,16 @@ export type VehicleVariant = {
   source: string;
   source_vehicle_id: null;
   is_verified: boolean;
+  catalog_confidence?: CatalogConfidence;
+  independently_verified?: boolean;
   created_at: Date;
 };
 
 export type VariantOption = {
   id: string;
   name: string;
+  catalogConfidence: CatalogConfidence;
+  independentlyVerified: boolean;
 } & Omit<VehicleVariant, 'id'>;
 
 export type PartCategory = {

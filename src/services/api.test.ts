@@ -1,4 +1,5 @@
-import { getCategories, getParts, mapCategory } from './api';
+import type { VehicleVariant } from '../types';
+import { getCategories, getParts, mapCategory, mapVariant } from './api';
 
 jest.mock('react-native-blob-util', () => ({
   fs: {
@@ -33,6 +34,67 @@ describe('mapCategory', () => {
       name: 'Engine',
       parent_id: null,
     });
+  });
+});
+
+function variantFixture(
+  overrides: Partial<VehicleVariant> = {},
+): VehicleVariant {
+  return {
+    id: 41,
+    model_id: 3,
+    year: 2018,
+    trim: 'Sport',
+    engine_code: 'K20',
+    engine_name: '2.0 I4',
+    engine_size_l: 2,
+    fuel_type: 'petrol',
+    transmission: 'manual',
+    body_style: 'hatch',
+    drive_type: 'fwd',
+    source: 'nhtsa.dot.gov',
+    source_vehicle_id: null,
+    is_verified: false,
+    created_at: new Date('2024-01-01'),
+    ...overrides,
+  };
+}
+
+describe('mapVariant', () => {
+  it('maps a legacy source/is_verified response without treating hostname or is_verified as independent confirmation', () => {
+    const mapped = mapVariant(
+      variantFixture({
+        source: 'nhtsa.dot.gov',
+        is_verified: true,
+      }),
+    );
+    expect(mapped.catalogConfidence).toBe('unknown');
+    expect(mapped.independentlyVerified).toBe(false);
+  });
+
+  it('maps future catalog_confidence and independently_verified fields', () => {
+    const mapped = mapVariant(
+      variantFixture({
+        catalog_confidence: 'unverified',
+        independently_verified: false,
+        is_verified: true,
+      }),
+    );
+    expect(mapped.catalogConfidence).toBe('unverified');
+    expect(mapped.independentlyVerified).toBe(false);
+  });
+
+  it('lets estimated source override contradictory verification flags', () => {
+    const mapped = mapVariant(
+      variantFixture({
+        source: 'estimated',
+        is_verified: true,
+        catalog_confidence: 'verified',
+        independently_verified: true,
+      }),
+    );
+    expect(mapped.catalogConfidence).toBe('estimated');
+    expect(mapped.independentlyVerified).toBe(false);
   });
 });
 

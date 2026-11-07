@@ -23,6 +23,7 @@ import type {
   VariantOption,
   YearOption,
 } from '../../types';
+import {getCatalogProvenanceLabel} from '../../utils/catalogProvenance';
 import {colors, radius, spacing, typography} from '../../theme';
 
 type Props = NativeStackScreenProps<GarageStackParamList, 'AddVehicle'>;
@@ -182,7 +183,18 @@ export function AddVehicleScreen({navigation}: Props) {
     [modelYears],
   );
   const variantOptions = useMemo(
-    () => variants.map(v => ({ key: v.id, label: v.name })),
+    () =>
+      variants.map(v => {
+        const detail = getCatalogProvenanceLabel({
+          confidence: v.catalogConfidence,
+          independentlyVerified: v.independentlyVerified,
+        });
+        return {
+          key: v.id,
+          label: v.name,
+          ...(detail ? {detail} : {}),
+        };
+      }),
     [variants],
   );
 
@@ -279,6 +291,8 @@ export function AddVehicleScreen({navigation}: Props) {
       trim: selectedVariant.trim,
       modelYearId: selectedModelYear.id,
       vehicleVariantId: Number(selectedVariant.id),
+      catalogConfidence: selectedVariant.catalogConfidence,
+      independentlyVerified: selectedVariant.independentlyVerified,
     });
     navigation.replace('CarDashboard', {vehicleId: id});
   };
@@ -338,6 +352,11 @@ export function AddVehicleScreen({navigation}: Props) {
               ? 'Pick a year first'
               : loadingVariants
               ? 'Loading variants…'
+              : selectedVariant
+              ? getCatalogProvenanceLabel({
+                  confidence: selectedVariant.catalogConfidence,
+                  independentlyVerified: selectedVariant.independentlyVerified,
+                }) ?? undefined
               : undefined
           }
           disabled={!selectedModelYear || loadingVariants}

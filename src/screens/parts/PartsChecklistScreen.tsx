@@ -189,6 +189,8 @@ export function PartsChecklistScreen({ navigation, route }: Props) {
         keyExtractor={item => item.id}
         data={checklist}
         contentContainerStyle={styles.checklistContent}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={`${checklist.length} ${checklist.length === 1 ? 'part' : 'parts'} shown`}
         renderItem={({ item }) => (
           <TrackedPartRow
             part={item}

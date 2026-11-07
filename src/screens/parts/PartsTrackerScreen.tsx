@@ -188,7 +188,9 @@ export function PartsTrackerScreen({navigation, route}: Props) {
       <Pressable
         disabled={!openFilter}
         onPress={() => setOpenFilter(null)}
-        style={styles.listArea}>
+        style={styles.listArea}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={`${filtered.length} ${filtered.length === 1 ? 'part' : 'parts'} shown`}>
         {filtered.length === 0
           ? emptyContent
           : filtered.map(part => (

@@ -11,6 +11,7 @@ import { Car } from 'lucide-react-native';
 import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
 import { List } from '../../components/common/List';
+import { SkeletonList } from '../../components/common/Skeleton';
 import { Text } from '../../components/common/Text';
 import { ApiError, exportVehiclePdf } from '../../services/api';
 import { useGarageStore } from '../../store/garageStore';
@@ -28,6 +29,7 @@ export default function ExportScreen() {
   const vehicles = useGarageStore(s => s.vehicles);
   const trackedParts = useGarageStore(s => s.trackedParts);
   const settings = useGarageStore(s => s.settings);
+  const hasHydrated = useGarageStore(s => s.hasHydrated);
   const [exportingVehicleId, setExportingVehicleId] = useState<string | null>(
     null,
   );
@@ -83,7 +85,11 @@ export default function ExportScreen() {
 
   return (
     <View style={styles.container}>
-      {vehicles.length === 0 ? (
+      {!hasHydrated ? (
+        <View style={styles.contentContainer} accessibilityLiveRegion="polite" accessibilityLabel="Loading vehicles">
+          <SkeletonList count={3} itemHeight={60} />
+        </View>
+      ) : vehicles.length === 0 ? (
         <EmptyState
           icon={<Car size={40} color={colors.textDim} />}
           title="No vehicles to export"

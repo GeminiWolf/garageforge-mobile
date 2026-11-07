@@ -7,6 +7,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Badge } from '@react-navigation/elements';
 
 import { EmptyState } from '../../components/common/EmptyState';
+import { SkeletonList } from '../../components/common/Skeleton';
 import { Text } from '../../components/common/Text';
 import { VehicleCard } from '../../components/garage/VehicleCard';
 import type {
@@ -24,6 +25,7 @@ type Props = CompositeScreenProps<
 export function GarageHomeScreen({ navigation }: Props) {
   const vehicles = useGarageStore(s => s.vehicles);
   const trackedParts = useGarageStore(s => s.trackedParts);
+  const hasHydrated = useGarageStore(s => s.hasHydrated);
 
   return (
     <View style={styles.container}>
@@ -40,7 +42,11 @@ export function GarageHomeScreen({ navigation }: Props) {
           </Badge>
         </View>
       </View>
-      {vehicles.length === 0 ? (
+      {!hasHydrated ? (
+        <View style={styles.contentContainer} accessibilityLiveRegion="polite" accessibilityLabel="Loading garage">
+          <SkeletonList count={3} itemHeight={120} />
+        </View>
+      ) : vehicles.length === 0 ? (
         <EmptyState
           icon={<Car size={40} color={colors.textDim} />}
           title="Garage is empty"
@@ -52,9 +58,6 @@ export function GarageHomeScreen({ navigation }: Props) {
         <FlatList
           keyExtractor={item => item.id}
           data={vehicles}
-          onRefresh={() => {}}
-          refreshing={false}
-          onEndReached={() => {}}
           contentContainerStyle={styles.contentContainer}
           renderItem={({ item }) => (
             <VehicleCard

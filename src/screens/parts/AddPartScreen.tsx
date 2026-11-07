@@ -60,6 +60,7 @@ export function AddPartScreen({navigation, route}: Props) {
   const [status, setStatus] = useState<PartStatus>('needed');
   const [estimatedCost, setEstimatedCost] = useState('');
   const [notes, setNotes] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     if (selectedCatalog) {
@@ -126,7 +127,10 @@ export function AddPartScreen({navigation, route}: Props) {
       estimatedCost: Number(estimatedCost) || 0,
       notes: notes.trim() || undefined,
     });
-    navigation.replace('PartDetail', {partId: id});
+    setSaveSuccess(true);
+    setTimeout(() => {
+      navigation.replace('PartDetail', {partId: id});
+    }, 600);
   };
 
   const categoryLabel =
@@ -161,7 +165,7 @@ export function AddPartScreen({navigation, route}: Props) {
         >
           <ScrollView style={styles.flex}>
             {error ? (
-              <View style={styles.errorRow}>
+              <View style={styles.errorRow} accessibilityLiveRegion="assertive" accessibilityRole="alert">
                 <Text variant="caption" tone="danger" style={styles.error}>
                   {error}
                 </Text>
@@ -178,6 +182,13 @@ export function AddPartScreen({navigation, route}: Props) {
                     }}
                   />
                 ) : null}
+              </View>
+            ) : null}
+            {saveSuccess ? (
+              <View style={styles.successRow} accessibilityLiveRegion="polite">
+                <Text variant="caption" tone="accent" weight="semibold">
+                  Part saved
+                </Text>
               </View>
             ) : null}
 
@@ -383,6 +394,10 @@ const styles = StyleSheet.create({
   },
   error: {
     flex: 1,
+  },
+  successRow: {
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   result: {
     backgroundColor: colors.surface,

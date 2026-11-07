@@ -285,9 +285,15 @@ export function AddVehicleScreen({navigation}: Props) {
 
   return (
     <View style={styles.container}>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View accessibilityLiveRegion="assertive" accessibilityRole="alert">
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      ) : null}
       {validationError ? (
-        <Text style={styles.error}>{validationError}</Text>
+        <View accessibilityLiveRegion="assertive" accessibilityRole="alert">
+          <Text style={styles.error}>{validationError}</Text>
+        </View>
       ) : null}
 
       <View style={styles.block}>

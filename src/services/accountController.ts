@@ -109,6 +109,7 @@ async function startSession(token: string): Promise<void> {
     // Upload everything on this device to the account on first sync.
     state.applySyncResult({
       vehicles: state.vehicles,
+      jobs: state.jobs,
       trackedParts: state.trackedParts,
       notes: state.notes,
       timeEntries: state.timeEntries,
@@ -195,6 +196,7 @@ async function endExpiredSession(): Promise<void> {
   state.setAccount(null);
   state.applySyncResult({
     vehicles: state.vehicles,
+    jobs: state.jobs,
     trackedParts: state.trackedParts,
     notes: state.notes,
     timeEntries: state.timeEntries,

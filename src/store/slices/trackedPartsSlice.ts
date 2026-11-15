@@ -2,11 +2,13 @@ import { createId } from '../../utils/createId';
 import type { NewTrackedPart, TrackedPart } from '../../types/garage';
 import type { GarageSlice, TrackedPartsSlice } from '../types';
 import { queueDeletions } from './accountSlice';
+import { jobForNewRecord } from './jobsSlice';
 
 function toTrackedPart(part: NewTrackedPart, id: string): TrackedPart {
   const next: TrackedPart = {
     id,
     vehicleId: part.vehicleId,
+    ...(part.jobId ? { jobId: part.jobId } : {}),
     name: part.name,
     partNumber: part.partNumber,
     category: part.category,
@@ -43,7 +45,20 @@ export const createTrackedPartsSlice: GarageSlice<TrackedPartsSlice> = set => ({
   addTrackedPart: part => {
     const id = part.id ?? createId();
     const next = toTrackedPart(part, id);
-    set(state => ({ trackedParts: [...state.trackedParts, next] }));
+    set(state => {
+      if (part.jobId) {
+        return { trackedParts: [...state.trackedParts, next] };
+      }
+      const { jobId, jobs } = jobForNewRecord(
+        state,
+        part.vehicleId,
+        next.updatedAt,
+      );
+      return {
+        jobs,
+        trackedParts: [...state.trackedParts, { ...next, jobId }],
+      };
+    });
     return id;
   },
 

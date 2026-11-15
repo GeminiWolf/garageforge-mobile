@@ -18,13 +18,43 @@ export type Vehicle = {
   /** Odometer reading in kilometres (shown in miles for imperial units). */
   mileage?: number;
   mileageUpdatedAt?: string;
+  /** Whose car it is (workshops). Personal users leave it out. */
+  customerName?: string;
+  /** Number plate, e.g. "CA 123-456". */
+  plate?: string;
   /** Device time of the last local change (used for sync). */
   updatedAt: string;
 };
 
 export type VehiclePatch = Partial<
-  Pick<Vehicle, 'engineNumber' | 'mileage' | 'mileageUpdatedAt'>
+  Pick<
+    Vehicle,
+    'engineNumber' | 'mileage' | 'mileageUpdatedAt' | 'customerName' | 'plate'
+  >
 >;
+
+export type JobStatus = 'open' | 'done';
+
+/**
+ * One visit of a car to the workshop. A car is added once; each visit is a
+ * job with its own parts, notes and time. At most one job per car is open.
+ */
+export type Job = {
+  id: string;
+  vehicleId: string;
+  /** e.g. "Service and front brakes". Optional. */
+  title?: string;
+  status: JobStatus;
+  /** When the car came in. */
+  openedAt: string;
+  /** When the job was finished. */
+  closedAt?: string;
+  /** Odometer reading when the car came in, in kilometres. */
+  mileageIn?: number;
+  updatedAt: string;
+};
+
+export type JobPatch = Partial<Pick<Job, 'title' | 'mileageIn'>>;
 
 export type NoteKind = 'customer' | 'personal';
 
@@ -32,6 +62,8 @@ export type NoteKind = 'customer' | 'personal';
 export type VehicleNote = {
   id: string;
   vehicleId: string;
+  /** The job (visit) this note belongs to. */
+  jobId?: string;
   kind: NoteKind;
   body: string;
   writtenAt: string;
@@ -42,6 +74,7 @@ export type VehicleNote = {
 export type TimeEntry = {
   id: string;
   vehicleId: string;
+  jobId?: string;
   minutes: number;
   /** Calendar date, YYYY-MM-DD. */
   workedOn: string;
@@ -52,6 +85,8 @@ export type TimeEntry = {
 export type TrackedPart = {
   id: string;
   vehicleId: string;
+  /** The job (visit) this part is for. */
+  jobId?: string;
   name: string;
   partNumber: string;
   category: string;
@@ -100,6 +135,7 @@ export type Account = {
 /** A deleted record waiting to be sent to the server. */
 export type PendingDeletion =
   | { type: 'vehicle'; record: Vehicle; deletedAt: string }
+  | { type: 'job'; record: Job; deletedAt: string }
   | { type: 'part'; record: TrackedPart; deletedAt: string }
   | { type: 'note'; record: VehicleNote; deletedAt: string }
   | { type: 'timeEntry'; record: TimeEntry; deletedAt: string };
@@ -118,6 +154,7 @@ export type SyncState = {
 
 export type GaragePersistState = {
   vehicles: Vehicle[];
+  jobs: Job[];
   trackedParts: TrackedPart[];
   notes: VehicleNote[];
   timeEntries: TimeEntry[];

@@ -5,6 +5,7 @@ import {
   normalizeVehicle,
   resolveApiConnection,
 } from './normalizePersistedGarage';
+import { defaultJobId } from './jobs';
 
 const vehicle = {
   id: 'veh_1',
@@ -200,6 +201,61 @@ describe('UUID migration and sync fields', () => {
       cursor: '2026-11-10T12:00:00.000Z',
       pendingDeletions: [],
     });
+  });
+
+  it('gives each car saved before jobs one open job holding its records', () => {
+    const V = '11111111-1111-4111-8111-111111111111';
+    const state = normalizePersistedGarage({
+      vehicles: [
+        {
+          id: V,
+          year: 2020,
+          make: 'Toyota',
+          model: 'Hilux',
+          trim: '',
+          mileage: 84320,
+          updatedAt: '2026-11-10T00:00:00.000Z',
+        },
+      ],
+      trackedParts: [
+        {
+          id: '22222222-2222-4222-8222-222222222222',
+          vehicleId: V,
+          name: 'Oil filter',
+          partNumber: '',
+          category: 'Engine',
+          priority: 'soon',
+          status: 'needed',
+          estimatedCost: 220,
+          updatedAt: '2026-11-02T00:00:00.000Z',
+        },
+      ],
+      notes: [
+        {
+          id: '33333333-3333-4333-8333-333333333333',
+          vehicleId: V,
+          kind: 'customer',
+          body: 'Knocking',
+          writtenAt: '2026-11-01T00:00:00.000Z',
+        },
+      ],
+    });
+    expect(state.jobs).toEqual([
+      expect.objectContaining({
+        id: defaultJobId(V),
+        vehicleId: V,
+        status: 'open',
+        openedAt: '2026-11-01T00:00:00.000Z',
+        mileageIn: 84320,
+      }),
+    ]);
+    expect(state.trackedParts[0].jobId).toBe(defaultJobId(V));
+    expect(state.notes[0].jobId).toBe(defaultJobId(V));
+
+    // Loading again changes nothing.
+    const again = normalizePersistedGarage(JSON.parse(JSON.stringify(state)));
+    expect(again.jobs).toEqual(state.jobs);
+    expect(again.trackedParts).toEqual(state.trackedParts);
   });
 
   it('starts signed out with empty sync state', () => {

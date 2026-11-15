@@ -1,8 +1,8 @@
-import React, {ReactNode} from 'react';
-import {StyleSheet, View} from 'react-native';
-import {spacing} from '../../theme';
-import {Button} from './Button';
-import {Text} from './Text';
+import React, { ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { spacing } from '../../theme';
+import { Button } from './Button';
+import { Text } from './Text';
 
 type Props = {
   icon?: ReactNode;
@@ -12,12 +12,7 @@ type Props = {
   onAction?: () => void;
 };
 
-export function EmptyState({
-  title,
-  subtitle,
-  actionLabel,
-  onAction,
-}: Props) {
+export function EmptyState({ title, subtitle, actionLabel, onAction }: Props) {
   return (
     <View style={styles.container}>
       <Text variant="title">{title}</Text>
@@ -27,11 +22,7 @@ export function EmptyState({
         </Text>
       ) : null}
       {actionLabel && onAction ? (
-        <Button
-          label={actionLabel}
-          onPress={onAction}
-          style={styles.button}
-        />
+        <Button label={actionLabel} onPress={onAction} style={styles.button} />
       ) : null}
     </View>
   );

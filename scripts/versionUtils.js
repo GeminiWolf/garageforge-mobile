@@ -71,14 +71,20 @@ function applyAndroidVersion(gradleContents, versionName, versionCode) {
 
 function readIosVersion(pbxprojContents) {
   const marketingMatch = pbxprojContents.match(/MARKETING_VERSION = ([^;]+);/);
-  const buildMatch = pbxprojContents.match(/CURRENT_PROJECT_VERSION = ([^;]+);/);
+  const buildMatch = pbxprojContents.match(
+    /CURRENT_PROJECT_VERSION = ([^;]+);/,
+  );
   return {
     marketingVersion: marketingMatch?.[1]?.trim() ?? null,
     currentProjectVersion: buildMatch ? Number(buildMatch[1]) : null,
   };
 }
 
-function applyIosVersion(pbxprojContents, marketingVersion, currentProjectVersion) {
+function applyIosVersion(
+  pbxprojContents,
+  marketingVersion,
+  currentProjectVersion,
+) {
   let next = pbxprojContents;
   if (!/MARKETING_VERSION = [^;]+;/.test(next)) {
     throw new Error('Could not find MARKETING_VERSION in iOS project');

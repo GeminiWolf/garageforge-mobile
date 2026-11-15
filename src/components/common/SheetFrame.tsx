@@ -41,9 +41,7 @@ export function SheetFrame({
         <View
           style={[
             styles.sheet,
-            compact
-              ? styles.compact
-              : { height: WINDOW_HEIGHT - insets.top },
+            compact ? styles.compact : { height: WINDOW_HEIGHT - insets.top },
             { paddingBottom: Math.max(insets.bottom, spacing.md) },
           ]}
         >
@@ -60,10 +58,7 @@ export function SheetFrame({
               accessibilityRole="button"
               accessibilityLabel="Close"
               hitSlop={spacing.sm}
-              style={({ pressed }) => [
-                styles.close,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.close, pressed && styles.pressed]}
             >
               <Text weight="medium">Close</Text>
             </Pressable>

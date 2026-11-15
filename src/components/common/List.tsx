@@ -69,12 +69,7 @@ function ListItem({
       <View style={styles.body}>
         <Text weight="medium">{label}</Text>
         {description != null && description !== '' ? (
-          <Text
-            size="sm"
-            tone="muted"
-            numberOfLines={1}
-            ellipsizeMode="middle"
-          >
+          <Text size="sm" tone="muted" numberOfLines={1} ellipsizeMode="middle">
             {description}
           </Text>
         ) : null}

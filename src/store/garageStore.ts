@@ -1,13 +1,13 @@
-import {create} from 'zustand';
-import {createJSONStorage, persist} from 'zustand/middleware';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {STORAGE_KEY} from '../config';
-import {setApiBearerToken} from '../services/api';
-import {createGarageState} from './createGarageState';
-import {normalizePersistedGarage} from './normalizePersistedGarage';
-import type {GarageState} from './types';
+import { STORAGE_KEY } from '../config';
+import { setApiBearerToken } from '../services/api';
+import { createGarageState } from './createGarageState';
+import { normalizePersistedGarage } from './normalizePersistedGarage';
+import type { GarageState } from './types';
 
-export type {GarageState} from './types';
+export type { GarageState } from './types';
 
 export const useGarageStore = create<GarageState>()(
   persist(createGarageState, {
@@ -29,7 +29,7 @@ export const useGarageStore = create<GarageState>()(
         state.setHasHydrated(true);
         return;
       }
-      useGarageStore.setState({hasHydrated: true});
+      useGarageStore.setState({ hasHydrated: true });
     },
   }),
 );

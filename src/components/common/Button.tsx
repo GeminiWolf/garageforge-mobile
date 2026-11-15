@@ -1,4 +1,4 @@
-import React, {ReactNode} from 'react';
+import React, { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -7,7 +7,12 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import {colors, radius as themeRadius, spacing, typography} from '../../theme';
+import {
+  colors,
+  radius as themeRadius,
+  spacing,
+  typography,
+} from '../../theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type Size = 'sm' | 'md' | 'lg';
@@ -54,7 +59,9 @@ export function Button({
 }: Props) {
   const isDisabled = disabled || loading;
   const spinnerColor =
-    variant === 'secondary' || variant === 'ghost' ? colors.accent : colors.white;
+    variant === 'secondary' || variant === 'ghost'
+      ? colors.accent
+      : colors.white;
   const borderRadius = RADIUS_VALUES[radius ?? DEFAULT_RADIUS[size]];
 
   return (
@@ -62,15 +69,16 @@ export function Button({
       accessibilityRole="button"
       onPress={onPress}
       disabled={isDisabled}
-      style={({pressed}) => [
+      style={({ pressed }) => [
         styles.base,
         styles[variant],
         sizeStyles[size],
-        {borderRadius},
+        { borderRadius },
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
         style,
-      ]}>
+      ]}
+    >
       {loading ? (
         <ActivityIndicator color={spinnerColor} />
       ) : (
@@ -83,7 +91,8 @@ export function Button({
               (variant === 'secondary' || variant === 'ghost') &&
                 styles.labelDark,
               variant === 'danger' && styles.labelDanger,
-            ]}>
+            ]}
+          >
             {label}
           </Text>
           {rightIcon}

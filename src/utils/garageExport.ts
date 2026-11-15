@@ -1,9 +1,4 @@
-import type {
-  AppSettings,
-  TrackedPart,
-  UnitSystem,
-  Vehicle,
-} from '../types';
+import type { AppSettings, TrackedPart, UnitSystem, Vehicle } from '../types';
 
 export type GarageExportPayload = {
   exportedAt: string;
@@ -106,13 +101,10 @@ export function parseContentDispositionFilename(
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(bytes).toString('base64');
-  }
-
+  const chunkSize = 0x8000;
   let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]!);
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
-  return globalThis.btoa(binary);
+  return btoa(binary);
 }

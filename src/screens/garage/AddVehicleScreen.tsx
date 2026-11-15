@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,31 +9,31 @@ import {
   Text,
   View,
 } from 'react-native';
-import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { SearchableBottomSheet } from '../../components/common/SearchableBottomSheet';
-import type {GarageStackParamList} from '../../navigation/types';
+import type { GarageStackParamList } from '../../navigation/types';
 import {
   getMakes,
   getModels,
   getModelYears,
   getVariants,
 } from '../../services/api';
-import {useGarageStore} from '../../store/garageStore';
+import { useGarageStore } from '../../store/garageStore';
 import type {
   MakeOption,
   ModelOption,
   VariantOption,
   YearOption,
 } from '../../types';
-import {colors, fontFamily, layout, spacing, typography} from '../../theme';
+import { colors, fontFamily, layout, spacing, typography } from '../../theme';
 import { parseVehicleYear } from '../../utils/parseVehicleYear';
 
 type Props = NativeStackScreenProps<GarageStackParamList, 'AddVehicle'>;
 type SheetKind = 'makes' | 'models' | 'years' | 'variants';
 
-export function AddVehicleScreen({navigation}: Props) {
+export function AddVehicleScreen({ navigation }: Props) {
   const apiBaseUrl = useGarageStore(s => s.settings.apiBaseUrl);
   const region = useGarageStore(s => s.settings.region);
   const addVehicle = useGarageStore(s => s.addVehicle);
@@ -188,11 +188,11 @@ export function AddVehicleScreen({navigation}: Props) {
   }, [selectedModel, selectedModelYear, apiBaseUrl]);
 
   const makeOptions = useMemo(
-    () => makes.map(m => ({key: m.id, label: m.name})),
+    () => makes.map(m => ({ key: m.id, label: m.name })),
     [makes],
   );
   const modelOptions = useMemo(
-    () => models.map(m => ({key: m.id, label: m.name})),
+    () => models.map(m => ({ key: m.id, label: m.name })),
     [models],
   );
   const yearOptions = useMemo(
@@ -312,7 +312,7 @@ export function AddVehicleScreen({navigation}: Props) {
       model: selectedModel.name,
       trim: selectedVariant.trim,
     });
-    navigation.replace('CarDashboard', {vehicleId: id});
+    navigation.replace('CarDashboard', { vehicleId: id });
   };
 
   const saveManual = () => {
@@ -330,7 +330,7 @@ export function AddVehicleScreen({navigation}: Props) {
       model,
       trim: manualTrim.trim(),
     });
-    navigation.replace('CarDashboard', {vehicleId: id});
+    navigation.replace('CarDashboard', { vehicleId: id });
   };
 
   return (
@@ -417,7 +417,9 @@ export function AddVehicleScreen({navigation}: Props) {
             <FieldButton
               label="Year"
               value={
-                selectedModelYear ? String(selectedModelYear.year) : 'Choose year'
+                selectedModelYear
+                  ? String(selectedModelYear.year)
+                  : 'Choose year'
               }
               hint={
                 !selectedModel
@@ -433,7 +435,9 @@ export function AddVehicleScreen({navigation}: Props) {
             <FieldButton
               label="Variant"
               value={
-                selectedVariant ? String(selectedVariant.name) : 'Choose variant'
+                selectedVariant
+                  ? String(selectedVariant.name)
+                  : 'Choose variant'
               }
               hint={
                 !selectedModelYear
@@ -506,11 +510,14 @@ function FieldButton({
       accessibilityRole="button"
       accessibilityLabel={`${label}, ${value}`}
       accessibilityHint={hint}
-      accessibilityState={{disabled: !!disabled}}
-      style={[styles.field, disabled && styles.disabled]}>
+      accessibilityState={{ disabled: !!disabled }}
+      style={[styles.field, disabled && styles.disabled]}
+    >
       <View style={styles.fieldHeader}>
         <Text style={styles.fieldLabel}>{label}</Text>
-        {loading ? <ActivityIndicator color={colors.accent} size="small" /> : null}
+        {loading ? (
+          <ActivityIndicator color={colors.accent} size="small" />
+        ) : null}
       </View>
       <Text style={styles.fieldValue}>{value}</Text>
       {hint && !loading ? <Text style={styles.fieldHint}>{hint}</Text> : null}

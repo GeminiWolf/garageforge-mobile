@@ -1,6 +1,6 @@
-import {createId} from '../../utils/createId';
-import type {NewVehicle, Vehicle} from '../../types/garage';
-import type {GarageSlice, VehiclesSlice} from '../types';
+import { createId } from '../../utils/createId';
+import type { NewVehicle, Vehicle } from '../../types/garage';
+import type { GarageSlice, VehiclesSlice } from '../types';
 
 function toVehicle(vehicle: NewVehicle, id: string): Vehicle {
   const next: Vehicle = {

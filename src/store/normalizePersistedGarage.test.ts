@@ -1,4 +1,4 @@
-import {getDefaultSettings} from '../config';
+import { getDefaultSettings } from '../config';
 import {
   normalizePersistedGarage,
   normalizeTrackedPart,
@@ -39,7 +39,7 @@ describe('normalizeVehicle', () => {
   });
 
   it('keeps engine when it was already saved', () => {
-    expect(normalizeVehicle({...vehicle, engine: 'S55'})).toEqual({
+    expect(normalizeVehicle({ ...vehicle, engine: 'S55' })).toEqual({
       id: 'veh_1',
       year: 2015,
       make: 'BMW',
@@ -50,7 +50,7 @@ describe('normalizeVehicle', () => {
   });
 
   it('returns null when required fields are missing', () => {
-    expect(normalizeVehicle({id: 'veh_1', make: 'BMW'})).toBeNull();
+    expect(normalizeVehicle({ id: 'veh_1', make: 'BMW' })).toBeNull();
   });
 });
 
@@ -101,7 +101,7 @@ describe('normalizePersistedGarage', () => {
   it('drops parts whose vehicle is missing', () => {
     const normalized = normalizePersistedGarage({
       vehicles: [vehicle],
-      trackedParts: [{...part, vehicleId: 'gone'}],
+      trackedParts: [{ ...part, vehicleId: 'gone' }],
     });
 
     expect(normalized.trackedParts).toEqual([]);

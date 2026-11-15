@@ -1,11 +1,6 @@
-import React, {ReactNode} from 'react';
-import {
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
-import {colors, radius as themeRadius, shadows, spacing} from '../../theme';
+import React, { ReactNode } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { colors, radius as themeRadius, shadows, spacing } from '../../theme';
 
 type Padding = 'none' | 'sm' | 'md' | 'lg';
 type Radius = 'sm' | 'md' | 'lg' | 'xl';
@@ -81,12 +76,13 @@ export function Card({
           padding: resolveSpacing(padding),
           borderRadius: RADIUS[radius],
           backgroundColor: resolveBackgroundColor(backgroundColor, tone),
-          ...(gap != null ? {gap: resolveSpacing(gap)} : null),
+          ...(gap != null ? { gap: resolveSpacing(gap) } : null),
         },
         bordered && styles.bordered,
         shadowed && shadows.soft,
         style,
-      ]}>
+      ]}
+    >
       {children}
     </View>
   );

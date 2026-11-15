@@ -38,11 +38,7 @@ export function ProgressBar({
         max: Math.max(0, max),
         now: Math.max(0, value),
       }}
-      style={[
-        styles.track,
-        { height, backgroundColor: trackColor },
-        style,
-      ]}
+      style={[styles.track, { height, backgroundColor: trackColor }, style]}
     >
       <View
         style={[

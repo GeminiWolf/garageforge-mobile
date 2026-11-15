@@ -43,7 +43,11 @@ export function Checkbox({
       ]}
     >
       {checked ? (
-        <Check size={Math.round(size * 0.7)} color={colors.bg} strokeWidth={3} />
+        <Check
+          size={Math.round(size * 0.7)}
+          color={colors.bg}
+          strokeWidth={3}
+        />
       ) : (
         <View />
       )}

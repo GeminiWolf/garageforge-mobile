@@ -1,7 +1,6 @@
 export const SPENDING_ALERT_THRESHOLDS = [50, 60, 70, 80, 90, 100] as const;
 
-export type SpendingAlertThreshold =
-  (typeof SPENDING_ALERT_THRESHOLDS)[number];
+export type SpendingAlertThreshold = (typeof SPENDING_ALERT_THRESHOLDS)[number];
 
 export function formatSpendingAlertThreshold(percent: number): string {
   return `${percent}%`;

@@ -1,4 +1,4 @@
-import type {CurrencyCode} from '../types';
+import type { CurrencyCode } from '../types';
 
 const SYMBOLS: Record<CurrencyCode, string> = {
   ZAR: 'R',

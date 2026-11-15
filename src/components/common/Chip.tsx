@@ -1,6 +1,6 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text} from 'react-native';
-import {colors, spacing, typography} from '../../theme';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors, spacing, typography } from '../../theme';
 
 type Props = {
   label: string;
@@ -9,19 +9,20 @@ type Props = {
   stretch?: boolean;
 };
 
-export function Chip({label, selected, onPress, stretch}: Props) {
+export function Chip({ label, selected, onPress, stretch }: Props) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{selected: !!selected}}
+      accessibilityState={{ selected: !!selected }}
       hitSlop={spacing.xs}
       style={[
         styles.chip,
         selected && styles.selected,
         stretch && styles.stretch,
-      ]}>
+      ]}
+    >
       <Text style={[styles.label, selected && styles.labelSelected]}>
         {label}
       </Text>

@@ -1,4 +1,4 @@
-import React, {ReactNode} from 'react';
+import React, { ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -8,8 +8,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {colors, layout} from '../../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, layout } from '../../theme';
 
 type Props = {
   children?: ReactNode;
@@ -20,8 +20,7 @@ type Props = {
 };
 
 const KEYBOARD_BEHAVIOR = Platform.OS === 'ios' ? 'padding' : undefined;
-const KEYBOARD_DISMISS_MODE =
-  Platform.OS === 'ios' ? 'interactive' : 'on-drag';
+const KEYBOARD_DISMISS_MODE = Platform.OS === 'ios' ? 'interactive' : 'on-drag';
 
 export function Screen({
   children,
@@ -48,7 +47,8 @@ export function Screen({
           contentContainerStyle={[styles.content, contentStyle]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={KEYBOARD_DISMISS_MODE}
-          automaticallyAdjustKeyboardInsets>
+          automaticallyAdjustKeyboardInsets
+        >
           {children}
         </ScrollView>
       </SafeAreaView>
@@ -60,7 +60,8 @@ export function Screen({
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={KEYBOARD_BEHAVIOR}
-        enabled={Platform.OS === 'ios'}>
+        enabled={Platform.OS === 'ios'}
+      >
         <View style={[styles.content, contentStyle]}>{children}</View>
       </KeyboardAvoidingView>
     </SafeAreaView>

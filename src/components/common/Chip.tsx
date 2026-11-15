@@ -49,7 +49,6 @@ const styles = StyleSheet.create({
   label: {
     ...typography.body,
     color: colors.textMuted,
-    textTransform: 'capitalize',
   },
   labelSelected: {
     color: colors.text,

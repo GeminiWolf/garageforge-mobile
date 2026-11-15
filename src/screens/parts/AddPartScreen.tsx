@@ -404,7 +404,7 @@ export function AddPartScreen({ navigation, route }: Props) {
                   {PRIORITIES.map(p => (
                     <Chip
                       key={p}
-                      label={p}
+                      label={p.charAt(0).toUpperCase() + p.slice(1)}
                       selected={priority === p}
                       onPress={() => setPriority(p)}
                     />

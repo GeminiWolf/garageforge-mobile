@@ -18,6 +18,18 @@ function toVehicle(vehicle: NewVehicle, id: string, now: string): Vehicle {
   if (vehicle.engineCode) {
     next.engineCode = vehicle.engineCode;
   }
+  const customerName = vehicle.customerName?.trim();
+  if (customerName) {
+    next.customerName = customerName;
+  }
+  const plate = vehicle.plate?.trim().toUpperCase();
+  if (plate) {
+    next.plate = plate;
+  }
+  if (vehicle.mileage != null) {
+    next.mileage = vehicle.mileage;
+    next.mileageUpdatedAt = now;
+  }
   return next;
 }
 
@@ -47,6 +59,16 @@ export const createVehiclesSlice: GarageSlice<VehiclesSlice> = set => ({
           if (engineNumber) next.engineNumber = engineNumber;
           else delete next.engineNumber;
         }
+        if ('customerName' in patch) {
+          const customerName = patch.customerName?.trim();
+          if (customerName) next.customerName = customerName;
+          else delete next.customerName;
+        }
+        if ('plate' in patch) {
+          const plate = patch.plate?.trim().toUpperCase();
+          if (plate) next.plate = plate;
+          else delete next.plate;
+        }
         if ('mileage' in patch) {
           if (patch.mileage != null) {
             next.mileage = patch.mileage;
@@ -69,7 +91,8 @@ export const createVehiclesSlice: GarageSlice<VehiclesSlice> = set => ({
       return {
         vehicles: state.vehicles.filter(item => item.id !== id),
         trackedParts: state.trackedParts.filter(part => part.vehicleId !== id),
-        // The server deletes a vehicle's notes and time with it.
+        // The server deletes a vehicle's jobs, notes and time with it.
+        jobs: state.jobs.filter(job => job.vehicleId !== id),
         notes: state.notes.filter(note => note.vehicleId !== id),
         timeEntries: state.timeEntries.filter(entry => entry.vehicleId !== id),
         sync: queueDeletions(state, [

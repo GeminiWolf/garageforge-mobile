@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { createVehiclesSlice } from './slices/vehiclesSlice';
+import { createJobsSlice } from './slices/jobsSlice';
 import { createTrackedPartsSlice } from './slices/trackedPartsSlice';
 import { createVehicleLogSlice } from './slices/vehicleLogSlice';
 import { createSettingsSlice } from './slices/settingsSlice';
@@ -18,6 +19,7 @@ export const createGarageState: StateCreator<GarageState> = (
       const now = new Date().toISOString();
       return {
         vehicles: [],
+        jobs: [],
         trackedParts: [],
         notes: [],
         timeEntries: [],
@@ -36,6 +38,7 @@ export const createGarageState: StateCreator<GarageState> = (
       };
     }),
   ...createVehiclesSlice(set, get, api),
+  ...createJobsSlice(set, get, api),
   ...createTrackedPartsSlice(set, get, api),
   ...createVehicleLogSlice(set, get, api),
   ...createSettingsSlice(set, get, api),

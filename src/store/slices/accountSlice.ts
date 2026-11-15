@@ -35,6 +35,7 @@ export const createAccountSlice: GarageSlice<AccountSlice> = set => ({
       account: null,
       sync: emptySyncState(),
       vehicles: [],
+      jobs: [],
       trackedParts: [],
       notes: [],
       timeEntries: [],

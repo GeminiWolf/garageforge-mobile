@@ -15,6 +15,7 @@ export const useGarageStore = create<GarageState>()(
     storage: createJSONStorage(() => AsyncStorage),
     partialize: state => ({
       vehicles: state.vehicles,
+      jobs: state.jobs,
       trackedParts: state.trackedParts,
       notes: state.notes,
       timeEntries: state.timeEntries,

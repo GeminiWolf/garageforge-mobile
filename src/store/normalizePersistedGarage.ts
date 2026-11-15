@@ -3,6 +3,7 @@ import type {
   Account,
   AppSettings,
   GaragePersistState,
+  Job,
   PendingDeletion,
   SyncState,
   TimeEntry,
@@ -11,6 +12,7 @@ import type {
   VehicleNote,
 } from '../types/garage';
 import { createId, isUuid } from '../utils/createId';
+import { fileUnderJobs } from './jobs';
 
 /** Stamp for records saved before sync existed; they count as changed. */
 const LEGACY_UPDATED_AT = () => new Date().toISOString();
@@ -55,7 +57,13 @@ export function normalizeVehicle(raw: unknown): Vehicle | null {
     trim: asString(raw.trim) ?? '',
     updatedAt: asTimestamp(raw.updatedAt) ?? LEGACY_UPDATED_AT(),
   };
-  for (const key of ['engine', 'engineCode', 'engineNumber'] as const) {
+  for (const key of [
+    'engine',
+    'engineCode',
+    'engineNumber',
+    'customerName',
+    'plate',
+  ] as const) {
     const value = asString(raw[key]);
     if (value) {
       vehicle[key] = value;
@@ -72,6 +80,38 @@ export function normalizeVehicle(raw: unknown): Vehicle | null {
   return vehicle;
 }
 
+export function normalizeJob(raw: unknown): Job | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+  const id = asString(raw.id);
+  const vehicleId = asString(raw.vehicleId);
+  const openedAt = asTimestamp(raw.openedAt);
+  if (!id || !vehicleId || !openedAt) {
+    return null;
+  }
+  const job: Job = {
+    id,
+    vehicleId,
+    status: raw.status === 'done' ? 'done' : 'open',
+    openedAt,
+    updatedAt: asTimestamp(raw.updatedAt) ?? LEGACY_UPDATED_AT(),
+  };
+  const title = asString(raw.title)?.trim();
+  if (title) job.title = title;
+  const closedAt = asTimestamp(raw.closedAt);
+  if (closedAt && job.status === 'done') job.closedAt = closedAt;
+  const mileageIn = asFiniteNumber(raw.mileageIn);
+  if (mileageIn != null && mileageIn >= 0) job.mileageIn = mileageIn;
+  return job;
+}
+
+/** Keeps a saved job id; a record without one is filed by fileUnderJobs. */
+function withJobId<T extends object>(record: T, raw: Record<string, unknown>) {
+  const jobId = asString(raw.jobId);
+  return jobId ? { ...record, jobId } : record;
+}
+
 export function normalizeNote(raw: unknown): VehicleNote | null {
   if (!isRecord(raw)) {
     return null;
@@ -83,14 +123,17 @@ export function normalizeNote(raw: unknown): VehicleNote | null {
   if (!id || !vehicleId || !body || !writtenAt) {
     return null;
   }
-  return {
-    id,
-    vehicleId,
-    kind: raw.kind === 'customer' ? 'customer' : 'personal',
-    body,
-    writtenAt,
-    updatedAt: asTimestamp(raw.updatedAt) ?? writtenAt,
-  };
+  return withJobId(
+    {
+      id,
+      vehicleId,
+      kind: raw.kind === 'customer' ? 'customer' : 'personal',
+      body,
+      writtenAt,
+      updatedAt: asTimestamp(raw.updatedAt) ?? writtenAt,
+    } as VehicleNote,
+    raw,
+  );
 }
 
 export function normalizeTimeEntry(raw: unknown): TimeEntry | null {
@@ -123,7 +166,7 @@ export function normalizeTimeEntry(raw: unknown): TimeEntry | null {
   if (note) {
     entry.note = note;
   }
-  return entry;
+  return withJobId(entry, raw);
 }
 
 export function normalizeTrackedPart(raw: unknown): TrackedPart | null {
@@ -187,7 +230,7 @@ export function normalizeTrackedPart(raw: unknown): TrackedPart | null {
   if (source) {
     part.source = source;
   }
-  return part;
+  return withJobId(part, raw);
 }
 
 export function normalizeSettings(raw: unknown): AppSettings {
@@ -269,6 +312,12 @@ function normalizeDeletion(raw: unknown): PendingDeletion | null {
     const record = normalizeVehicle(raw.record);
     return record && isUuid(record.id)
       ? { type: 'vehicle', record, deletedAt }
+      : null;
+  }
+  if (raw.type === 'job') {
+    const record = normalizeJob(raw.record);
+    return record && isUuid(record.id)
+      ? { type: 'job', record, deletedAt }
       : null;
   }
   if (raw.type === 'part') {
@@ -375,11 +424,22 @@ export function normalizePersistedGarage(raw: unknown): GaragePersistState {
       })
     : [];
 
+  const jobs = Array.isArray(stored.jobs)
+    ? stored.jobs.flatMap(item => {
+        const job = normalizeJob(item);
+        return job && vehicleIds.has(job.vehicleId) ? [job] : [];
+      })
+    : [];
+
+  // Garages saved before jobs existed: each car gets one job holding its
+  // current parts, notes and time.
+  const filed = fileUnderJobs(
+    { vehicles, jobs, trackedParts, notes, timeEntries },
+    new Date().toISOString(),
+  );
+
   return {
-    vehicles,
-    trackedParts,
-    notes,
-    timeEntries,
+    ...filed,
     settings: normalizeSettings(stored.settings),
     account: normalizeAccount(stored.account),
     sync: normalizeSyncState(stored.sync),

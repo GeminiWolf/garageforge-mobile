@@ -1,6 +1,7 @@
 import { createId } from '../../utils/createId';
 import type { GarageSlice, VehicleLogSlice } from '../types';
 import { queueDeletions } from './accountSlice';
+import { jobForNewRecord } from './jobsSlice';
 
 /** Notes and time spent on each vehicle. Both sync like parts. */
 export const createVehicleLogSlice: GarageSlice<VehicleLogSlice> = set => ({
@@ -10,19 +11,24 @@ export const createVehicleLogSlice: GarageSlice<VehicleLogSlice> = set => ({
   addNote: ({ vehicleId, kind, body }) => {
     const id = createId();
     const now = new Date().toISOString();
-    set(state => ({
-      notes: [
-        ...state.notes,
-        {
-          id,
-          vehicleId,
-          kind,
-          body: body.trim(),
-          writtenAt: now,
-          updatedAt: now,
-        },
-      ],
-    }));
+    set(state => {
+      const { jobId, jobs } = jobForNewRecord(state, vehicleId, now);
+      return {
+        jobs,
+        notes: [
+          ...state.notes,
+          {
+            id,
+            vehicleId,
+            jobId,
+            kind,
+            body: body.trim(),
+            writtenAt: now,
+            updatedAt: now,
+          },
+        ],
+      };
+    });
     return id;
   },
 
@@ -63,19 +69,24 @@ export const createVehicleLogSlice: GarageSlice<VehicleLogSlice> = set => ({
   addTimeEntry: ({ vehicleId, minutes, workedOn, note }) => {
     const id = createId();
     const now = new Date().toISOString();
-    set(state => ({
-      timeEntries: [
-        ...state.timeEntries,
-        {
-          id,
-          vehicleId,
-          minutes: Math.round(minutes),
-          workedOn,
-          ...(note?.trim() ? { note: note.trim() } : {}),
-          updatedAt: now,
-        },
-      ],
-    }));
+    set(state => {
+      const { jobId, jobs } = jobForNewRecord(state, vehicleId, now);
+      return {
+        jobs,
+        timeEntries: [
+          ...state.timeEntries,
+          {
+            id,
+            vehicleId,
+            jobId,
+            minutes: Math.round(minutes),
+            workedOn,
+            ...(note?.trim() ? { note: note.trim() } : {}),
+            updatedAt: now,
+          },
+        ],
+      };
+    });
     return id;
   },
 

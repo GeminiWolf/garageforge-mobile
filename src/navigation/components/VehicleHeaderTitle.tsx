@@ -2,10 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text } from '../../components/common/Text';
 import { useGarageStore } from '../../store/garageStore';
-import {
-  formatVehicleTitle,
-  formatVehicleMeta,
-} from '../../utils/formatVehicleName';
+import { carSubtitle, carTitle } from '../../utils/carInfo';
 
 type Props = {
   vehicleId: string;
@@ -21,10 +18,10 @@ export function VehicleHeaderTitle({ vehicleId }: Props) {
   return (
     <View>
       <Text variant="subtitle" numberOfLines={1}>
-        {formatVehicleTitle(vehicle)}
+        {carTitle(vehicle)}
       </Text>
       <Text variant="caption" tone="muted" numberOfLines={1}>
-        {formatVehicleMeta(vehicle)}
+        {[carSubtitle(vehicle), vehicle.plate].filter(Boolean).join(' · ')}
       </Text>
     </View>
   );

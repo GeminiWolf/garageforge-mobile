@@ -17,6 +17,9 @@ import {
   BudgetScreen,
   CarDashboardScreen,
   ExportScreen,
+  FindCarScreen,
+  JobDetailScreen,
+  StartJobScreen,
   GarageHomeScreen,
   LicensesScreen,
   PartDetailScreen,
@@ -191,8 +194,23 @@ export function RootNavigator() {
           name="AddVehicle"
           component={AddVehicleScreen}
           options={{
-            title: 'Add vehicle',
+            title: 'Add a new car',
           }}
+        />
+        <GarageStack.Screen
+          name="FindCar"
+          component={FindCarScreen}
+          options={{ title: 'Add a car' }}
+        />
+        <GarageStack.Screen
+          name="StartJob"
+          component={StartJobScreen}
+          options={{ title: 'Start a job' }}
+        />
+        <GarageStack.Screen
+          name="JobDetail"
+          component={JobDetailScreen}
+          options={{ title: 'Job' }}
         />
         <GarageStack.Screen
           name="CarDashboard"

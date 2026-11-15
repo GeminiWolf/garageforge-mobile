@@ -6,7 +6,13 @@ import {
   hasPendingChanges,
   type SyncSnapshot,
 } from './sync';
-import type { ServerPart, ServerVehicle, SyncResponse } from './syncTypes';
+import type {
+  ServerJob,
+  ServerPart,
+  ServerVehicle,
+  SyncResponse,
+} from './syncTypes';
+import { defaultJobId } from '../store/jobs';
 
 const T0 = '2026-11-10T10:00:00.000Z';
 const PUSHED = '2026-11-10T11:00:00.000Z';
@@ -18,6 +24,25 @@ const V1 = '11111111-1111-4111-8111-111111111111';
 const V2 = '22222222-2222-4222-8222-222222222222';
 const P1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const P2 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const J1 = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const J2 = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+
+const serverJob = (
+  id: string,
+  vehicleId: string,
+  extra: Partial<ServerJob> = {},
+): ServerJob => ({
+  id,
+  vehicleId,
+  title: null,
+  status: 'open',
+  openedAt: T0,
+  closedAt: null,
+  mileageIn: null,
+  clientUpdatedAt: T0,
+  deletedAt: null,
+  ...extra,
+});
 
 const vehicle = (id: string, updatedAt: string, make = 'BMW'): Vehicle => ({
   id,
@@ -103,6 +128,7 @@ const serverSettings = {
 function snapshot(extra: Partial<SyncSnapshot> = {}): SyncSnapshot {
   return {
     vehicles: [],
+    jobs: [],
     trackedParts: [],
     notes: [],
     timeEntries: [],
@@ -172,10 +198,17 @@ describe('applySyncResponse', () => {
     const later = '2026-11-10T13:00:00.000Z'; // other device's clock is ahead
     const result = applySyncResponse(
       snapshot(),
-      { vehicles: [], parts: [], notes: [], timeEntries: [] },
+      { vehicles: [], jobs: [], parts: [], notes: [], timeEntries: [] },
       response({
         vehicles: [serverVehicle(V1, { clientUpdatedAt: later })],
-        parts: [serverPart(P1, V1, { actualCost: 99, notes: 'From web' })],
+        jobs: [serverJob(J1, V1)],
+        parts: [
+          serverPart(P1, V1, {
+            actualCost: 99,
+            notes: 'From web',
+            jobId: J1,
+          }),
+        ],
       }),
       STARTED,
       NOW,
@@ -185,6 +218,7 @@ describe('applySyncResponse', () => {
       id: P1,
       actualCost: 99,
       notes: 'From web',
+      jobId: J1,
       updatedAt: T0,
     });
     expect(result.sync).toMatchObject({
@@ -201,7 +235,7 @@ describe('applySyncResponse', () => {
         vehicles: [vehicle(V1, T0), vehicle(V2, T0)],
         trackedParts: [part(P1, V1, T0), part(P2, V2, T0)],
       }),
-      { vehicles: [], parts: [], notes: [], timeEntries: [] },
+      { vehicles: [], jobs: [], parts: [], notes: [], timeEntries: [] },
       response({ vehicles: [serverVehicle(V1, { deletedAt: T0 })] }),
       STARTED,
       NOW,
@@ -213,7 +247,7 @@ describe('applySyncResponse', () => {
   it('keeps local edits made while the request was in flight', () => {
     const result = applySyncResponse(
       snapshot({ vehicles: [vehicle(V1, LATER, 'Edited on phone')] }),
-      { vehicles: [], parts: [], notes: [], timeEntries: [] },
+      { vehicles: [], jobs: [], parts: [], notes: [], timeEntries: [] },
       response({ vehicles: [serverVehicle(V1, { make: 'From server' })] }),
       STARTED,
       NOW,
@@ -226,7 +260,7 @@ describe('applySyncResponse', () => {
     const fromServer = { ...serverSettings, monthlyBudget: 4000 };
     const applied = applySyncResponse(
       snapshot(),
-      { vehicles: [], parts: [], notes: [], timeEntries: [] },
+      { vehicles: [], jobs: [], parts: [], notes: [], timeEntries: [] },
       response({ settings: fromServer }),
       STARTED,
       NOW,
@@ -238,7 +272,7 @@ describe('applySyncResponse', () => {
         settings: { ...settings, monthlyBudget: 1500 },
         sync: { pendingDeletions: [], settingsUpdatedAt: LATER },
       }),
-      { vehicles: [], parts: [], notes: [], timeEntries: [] },
+      { vehicles: [], jobs: [], parts: [], notes: [], timeEntries: [] },
       response({ settings: fromServer }),
       STARTED,
       NOW,
@@ -261,6 +295,7 @@ describe('applySyncResponse', () => {
       snapshot({ sync: { pendingDeletions: [sent, queuedLater] } }),
       {
         vehicles: [],
+        jobs: [],
         parts: [{ ...sent.record, deletedAt: T0 } as never],
         notes: [],
         timeEntries: [],
@@ -278,7 +313,7 @@ describe('applySyncResponse', () => {
         vehicles: [vehicle(V1, T0)],
         trackedParts: [part(P1, V1, T0)],
       }),
-      { vehicles: [], parts: [], notes: [], timeEntries: [] },
+      { vehicles: [], jobs: [], parts: [], notes: [], timeEntries: [] },
       response({
         rejected: [{ type: 'vehicle', id: V1, reason: 'id_conflict' }],
       }),
@@ -296,7 +331,13 @@ describe('applySyncResponse', () => {
 describe('vehicle details, notes and time', () => {
   const N1 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
   const E1 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-  const sent = { vehicles: [], parts: [], notes: [], timeEntries: [] };
+  const sent = {
+    vehicles: [],
+    jobs: [],
+    parts: [],
+    notes: [],
+    timeEntries: [],
+  };
 
   it('sends phone-editable vehicle fields, clearing empty ones', () => {
     const request = buildSyncRequest(
@@ -421,5 +462,134 @@ describe('vehicle details, notes and time', () => {
       NOW,
     );
     expect(result.notes).toEqual([]);
+  });
+});
+
+describe('jobs', () => {
+  const empty = {
+    vehicles: [],
+    jobs: [],
+    parts: [],
+    notes: [],
+    timeEntries: [],
+  };
+
+  it('sends jobs, the job of each part, the plate and the customer', () => {
+    const request = buildSyncRequest(
+      snapshot({
+        vehicles: [
+          { ...vehicle(V1, T0), plate: 'CA 123-456', customerName: 'Thabo' },
+        ],
+        jobs: [
+          {
+            id: J1,
+            vehicleId: V1,
+            title: 'Front suspension',
+            status: 'done',
+            openedAt: T0,
+            closedAt: T0,
+            mileageIn: 79900,
+            updatedAt: T0,
+          },
+        ],
+        trackedParts: [part(P1, V1, T0, { jobId: J1 })],
+      }),
+    );
+    expect(request.vehicles[0]).toMatchObject({
+      registrationNumber: 'CA 123-456',
+      customerName: 'Thabo',
+    });
+    expect(request.jobs).toEqual([
+      {
+        id: J1,
+        vehicleId: V1,
+        title: 'Front suspension',
+        status: 'done',
+        openedAt: T0,
+        closedAt: T0,
+        mileageIn: 79900,
+        updatedAt: T0,
+      },
+    ]);
+    expect(request.parts[0].jobId).toBe(J1);
+  });
+
+  it('pulls jobs and files a website part under the open job', () => {
+    const result = applySyncResponse(
+      snapshot(),
+      empty,
+      response({
+        vehicles: [
+          serverVehicle(V1, {
+            registrationNumber: 'CY 778-901',
+            customerName: 'Sipho',
+          }),
+        ],
+        jobs: [
+          serverJob(J1, V1, { status: 'done', closedAt: T0 }),
+          serverJob(J2, V1, { openedAt: PUSHED }),
+        ],
+        parts: [serverPart(P1, V1)],
+      }),
+      STARTED,
+      NOW,
+    );
+    expect(result.vehicles[0]).toMatchObject({
+      plate: 'CY 778-901',
+      customerName: 'Sipho',
+    });
+    expect(result.jobs.map(job => job.status).sort()).toEqual(['done', 'open']);
+    expect(result.trackedParts[0]).toMatchObject({ jobId: J2, updatedAt: NOW });
+    expect(hasPendingChanges(result)).toBe(true);
+  });
+
+  it('gives a car from a server without jobs the same job on every phone', () => {
+    const result = applySyncResponse(
+      snapshot(),
+      empty,
+      response({
+        vehicles: [serverVehicle(V1)],
+        parts: [serverPart(P1, V1)],
+      }),
+      STARTED,
+      NOW,
+    );
+    expect(result.jobs).toEqual([
+      expect.objectContaining({
+        id: defaultJobId(V1),
+        vehicleId: V1,
+        status: 'open',
+      }),
+    ]);
+    expect(defaultJobId(V1)).not.toBe(V1);
+    expect(defaultJobId(V1)).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(result.trackedParts[0].jobId).toBe(defaultJobId(V1));
+  });
+
+  it("moves records to a rejected job's new id", () => {
+    const result = applySyncResponse(
+      snapshot({
+        vehicles: [vehicle(V1, T0)],
+        jobs: [
+          {
+            id: J1,
+            vehicleId: V1,
+            status: 'open',
+            openedAt: T0,
+            updatedAt: T0,
+          },
+        ],
+        trackedParts: [part(P1, V1, T0, { jobId: J1 })],
+      }),
+      empty,
+      response({ rejected: [{ type: 'job', id: J1, reason: 'id_conflict' }] }),
+      STARTED,
+      NOW,
+    );
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0].id).not.toBe(J1);
+    expect(result.trackedParts[0].jobId).toBe(result.jobs[0].id);
   });
 });

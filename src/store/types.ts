@@ -2,6 +2,8 @@ import type { StateCreator } from 'zustand';
 import type {
   Account,
   AppSettings,
+  Job,
+  JobPatch,
   NewTrackedPart,
   NewVehicle,
   NoteKind,
@@ -20,6 +22,25 @@ export type VehiclesSlice = {
   addVehicle: (vehicle: NewVehicle) => string;
   updateVehicle: (id: string, patch: VehiclePatch) => void;
   removeVehicle: (id: string) => void;
+};
+
+export type NewJob = {
+  vehicleId: string;
+  title?: string;
+  /** Odometer reading when the car came in; also updates the car. */
+  mileageIn?: number;
+  /** What the customer said; saved as a customer note on the job. */
+  customerNote?: string;
+};
+
+export type JobsSlice = {
+  jobs: Job[];
+  /** Starts a job (finishing any job still open on the car). */
+  startJob: (job: NewJob) => string;
+  updateJob: (id: string, patch: JobPatch) => void;
+  finishJob: (id: string) => void;
+  /** Reopens a finished job if the car has no job in progress. */
+  reopenJob: (id: string) => void;
 };
 
 export type NewNote = { vehicleId: string; kind: NoteKind; body: string };
@@ -65,6 +86,7 @@ export type AccountSlice = {
     result: Pick<
       GarageState,
       | 'vehicles'
+      | 'jobs'
       | 'trackedParts'
       | 'notes'
       | 'timeEntries'
@@ -77,6 +99,7 @@ export type AccountSlice = {
 };
 
 export type GarageState = VehiclesSlice &
+  JobsSlice &
   TrackedPartsSlice &
   VehicleLogSlice &
   SettingsSlice &

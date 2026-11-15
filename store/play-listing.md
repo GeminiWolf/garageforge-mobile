@@ -101,3 +101,21 @@ account or personal data, so they are not user data.
    testers opted in for 14 days in a row before you can apply for production.
    Play Console's dashboard shows the exact requirement for your account.
 4. Send testers the opt-in link from the track page.
+
+## When 2.2 (cars and jobs) ships
+
+Version 2.1.0 above is unchanged. For 2.2, update the listing and the Data
+safety form before rolling it out:
+
+- **Data safety, Personal info → Other info:** add "customer name" to the
+  notes: "Customer name, registration number, VIN and engine number, if
+  entered". Still optional, not shared.
+- **Full description:** add a section:
+
+  CUSTOMERS AND HISTORY
+  • Put the customer's name and number plate on each car
+  • Search your garage by customer, plate or car
+  • Each visit is a job; finished jobs stay in the car's history
+
+- Check that the privacy policy update (customer names and jobs) is live on
+  the website first.

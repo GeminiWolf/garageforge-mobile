@@ -46,6 +46,9 @@ export function AddVehicleScreen({ navigation }: Props) {
   const apiBaseUrl = useGarageStore(s => s.settings.apiBaseUrl);
   const region = useGarageStore(s => s.settings.region);
   const addVehicle = useGarageStore(s => s.addVehicle);
+  const startJob = useGarageStore(s => s.startJob);
+  const [customerName, setCustomerName] = useState('');
+  const [plate, setPlate] = useState('');
 
   const [manual, setManual] = useState(false);
   const [manualYear, setManualYear] = useState('');
@@ -327,7 +330,11 @@ export function AddVehicleScreen({ navigation }: Props) {
       ...(selectedVariant.engine_code?.trim()
         ? { engineCode: selectedVariant.engine_code.trim() }
         : {}),
+      customerName,
+      plate,
     });
+    // A new car is in the workshop: it starts with a job.
+    startJob({ vehicleId: id });
     navigation.replace('CarDashboard', { vehicleId: id });
   };
 
@@ -345,9 +352,39 @@ export function AddVehicleScreen({ navigation }: Props) {
       make,
       model,
       trim: manualTrim.trim(),
+      customerName,
+      plate,
     });
+    startJob({ vehicleId: id });
     navigation.replace('CarDashboard', { vehicleId: id });
   };
+
+  const owner = (
+    <View style={styles.owner}>
+      <Text style={styles.ownerTitle}>Whose car is it?</Text>
+      <Input
+        appearance="outlined"
+        size="lg"
+        label="Customer"
+        helper="Optional. Leave empty if it’s your own car."
+        value={customerName}
+        onChangeText={setCustomerName}
+        autoCapitalize="words"
+        maxLength={120}
+      />
+      <Input
+        appearance="outlined"
+        size="lg"
+        label="Number plate"
+        helper="Optional"
+        value={plate}
+        onChangeText={setPlate}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        maxLength={20}
+      />
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -410,6 +447,7 @@ export function AddVehicleScreen({ navigation }: Props) {
               helper="Optional"
               containerStyle={styles.manualField}
             />
+            {owner}
             <Button label="Save to garage" size="lg" onPress={saveManual} />
             <Pressable
               onPress={() => {
@@ -495,6 +533,7 @@ export function AddVehicleScreen({ navigation }: Props) {
                 onPress={() => setOpenSheet('variants')}
               />
             </View>
+            {owner}
             <Button
               label="Save to garage"
               size="lg"
@@ -597,6 +636,13 @@ function FieldButton({
 }
 
 const styles = StyleSheet.create({
+  owner: { gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.md },
+  ownerTitle: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.text,
+  },
   flex: {
     flex: 1,
   },

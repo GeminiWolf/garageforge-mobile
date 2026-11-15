@@ -1,5 +1,6 @@
 import type {
   AppSettings,
+  Job,
   PendingDeletion,
   SyncState,
   TimeEntry,
@@ -8,9 +9,12 @@ import type {
   VehicleNote,
 } from '../types/garage';
 import { createId } from '../utils/createId';
+import { fileUnderJobs } from '../store/jobs';
 import type {
+  JobChange,
   NoteChange,
   PartChange,
+  ServerJob,
   ServerNote,
   ServerPart,
   ServerSettings,
@@ -24,6 +28,7 @@ import type {
 
 export type SyncSnapshot = {
   vehicles: Vehicle[];
+  jobs: Job[];
   trackedParts: TrackedPart[];
   notes: VehicleNote[];
   timeEntries: TimeEntry[];
@@ -48,6 +53,8 @@ function toVehicleChange(vehicle: Vehicle): VehicleChange {
     engineNumber: vehicle.engineNumber ?? null,
     currentMileage: vehicle.mileage ?? null,
     mileageUpdatedAt: vehicle.mileageUpdatedAt ?? null,
+    registrationNumber: vehicle.plate ?? null,
+    customerName: vehicle.customerName ?? null,
     updatedAt: vehicle.updatedAt,
   };
   // Omitted (not null) so a value added on the website is not wiped; the
@@ -61,12 +68,26 @@ function toVehicleChange(vehicle: Vehicle): VehicleChange {
   return change;
 }
 
+function toJobChange(job: Job): JobChange {
+  return {
+    id: job.id,
+    vehicleId: job.vehicleId,
+    title: job.title ?? null,
+    status: job.status,
+    openedAt: job.openedAt,
+    closedAt: job.closedAt ?? null,
+    mileageIn: job.mileageIn ?? null,
+    updatedAt: job.updatedAt,
+  };
+}
+
 function toPartChange(part: TrackedPart): PartChange {
   // Every part field is editable on the phone, so absent values are sent
   // as null to clear them on the server.
   return {
     id: part.id,
     vehicleId: part.vehicleId,
+    jobId: part.jobId ?? null,
     name: part.name,
     partNumber: part.partNumber,
     category: part.category,
@@ -87,6 +108,7 @@ function toNoteChange(note: VehicleNote): NoteChange {
   return {
     id: note.id,
     vehicleId: note.vehicleId,
+    jobId: note.jobId ?? null,
     kind: note.kind,
     body: note.body,
     writtenAt: note.writtenAt,
@@ -98,6 +120,7 @@ function toTimeEntryChange(entry: TimeEntry): TimeEntryChange {
   return {
     id: entry.id,
     vehicleId: entry.vehicleId,
+    jobId: entry.jobId ?? null,
     minutes: entry.minutes,
     workedOn: entry.workedOn,
     note: entry.note ?? null,
@@ -110,6 +133,9 @@ function addDeletion(request: SyncRequest, deletion: PendingDeletion): void {
   switch (deletion.type) {
     case 'vehicle':
       request.vehicles.push({ ...toVehicleChange(deletion.record), ...meta });
+      break;
+    case 'job':
+      request.jobs.push({ ...toJobChange(deletion.record), ...meta });
       break;
     case 'part':
       request.parts.push({ ...toPartChange(deletion.record), ...meta });
@@ -145,6 +171,7 @@ export function hasPendingChanges(snapshot: SyncSnapshot): boolean {
   return (
     pendingDeletions.length > 0 ||
     snapshot.vehicles.some(changed) ||
+    snapshot.jobs.some(changed) ||
     snapshot.trackedParts.some(changed) ||
     snapshot.notes.some(changed) ||
     snapshot.timeEntries.some(changed) ||
@@ -160,6 +187,7 @@ export function buildSyncRequest(snapshot: SyncSnapshot): SyncRequest {
     isAfter(item.updatedAt, sync.lastPushedAt);
   const request: SyncRequest = {
     vehicles: snapshot.vehicles.filter(changed).map(toVehicleChange),
+    jobs: snapshot.jobs.filter(changed).map(toJobChange),
     parts: snapshot.trackedParts.filter(changed).map(toPartChange),
     notes: snapshot.notes.filter(changed).map(toNoteChange),
     timeEntries: snapshot.timeEntries.filter(changed).map(toTimeEntryChange),
@@ -198,7 +226,23 @@ function fromServerVehicle(row: ServerVehicle, updatedAt: string): Vehicle {
     vehicle.mileage = row.currentMileage;
     if (row.mileageUpdatedAt) vehicle.mileageUpdatedAt = row.mileageUpdatedAt;
   }
+  if (row.customerName) vehicle.customerName = row.customerName;
+  if (row.registrationNumber) vehicle.plate = row.registrationNumber;
   return vehicle;
+}
+
+function fromServerJob(row: ServerJob, updatedAt: string): Job {
+  const job: Job = {
+    id: row.id,
+    vehicleId: row.vehicleId,
+    status: row.status,
+    openedAt: row.openedAt,
+    updatedAt,
+  };
+  if (row.title) job.title = row.title;
+  if (row.closedAt && row.status === 'done') job.closedAt = row.closedAt;
+  if (row.mileageIn != null) job.mileageIn = row.mileageIn;
+  return job;
 }
 
 function fromServerPart(row: ServerPart, updatedAt: string): TrackedPart {
@@ -220,11 +264,12 @@ function fromServerPart(row: ServerPart, updatedAt: string): TrackedPart {
   if (row.paidAt) part.paidAt = row.paidAt;
   if (row.notes) part.notes = row.notes;
   if (row.source) part.source = row.source;
+  if (row.jobId) part.jobId = row.jobId;
   return part;
 }
 
 function fromServerNote(row: ServerNote, updatedAt: string): VehicleNote {
-  return {
+  const note: VehicleNote = {
     id: row.id,
     vehicleId: row.vehicleId,
     kind: row.kind,
@@ -232,6 +277,8 @@ function fromServerNote(row: ServerNote, updatedAt: string): VehicleNote {
     writtenAt: row.writtenAt,
     updatedAt,
   };
+  if (row.jobId) note.jobId = row.jobId;
+  return note;
 }
 
 function fromServerTimeEntry(
@@ -246,6 +293,7 @@ function fromServerTimeEntry(
     updatedAt,
   };
   if (row.note) entry.note = row.note;
+  if (row.jobId) entry.jobId = row.jobId;
   return entry;
 }
 
@@ -289,12 +337,13 @@ function reissueId<T extends { id: string; updatedAt: string }>(
   records: Map<string, T>,
   id: string,
   now: string,
-): void {
+): string | undefined {
   const record = records.get(id);
-  if (!record) return;
+  if (!record) return undefined;
   const newId = createId();
   records.delete(id);
   records.set(newId, { ...record, id: newId, updatedAt: now });
+  return newId;
 }
 
 /**
@@ -317,10 +366,14 @@ export function applySyncResponse(
     isAfter(item.updatedAt, startedAt);
 
   const vehicles = new Map(current.vehicles.map(item => [item.id, item]));
+  const jobs = new Map(current.jobs.map(item => [item.id, item]));
   const parts = new Map(current.trackedParts.map(item => [item.id, item]));
   const notes = new Map(current.notes.map(item => [item.id, item]));
   const timeEntries = new Map(current.timeEntries.map(item => [item.id, item]));
-  const children = [parts, notes, timeEntries] as Map<string, ChildRecord>[];
+  const children = [jobs, parts, notes, timeEntries] as Map<
+    string,
+    ChildRecord
+  >[];
 
   for (const row of response.vehicles) {
     const local = vehicles.get(row.id);
@@ -342,6 +395,7 @@ export function applySyncResponse(
     }
   }
 
+  mergeChildren(jobs, response.jobs ?? [], vehicles, startedAt, fromServerJob);
   mergeChildren(parts, response.parts, vehicles, startedAt, fromServerPart);
   mergeChildren(
     notes,
@@ -382,6 +436,25 @@ export function applySyncResponse(
         }
         break;
       }
+      case 'job': {
+        const newId = reissueId(jobs, rejection.id, now);
+        if (!newId) break;
+        for (const records of [parts, notes, timeEntries] as Map<
+          string,
+          ChildRecord & { jobId?: string }
+        >[]) {
+          for (const record of records.values()) {
+            if (record.jobId === rejection.id) {
+              records.set(record.id, {
+                ...record,
+                jobId: newId,
+                updatedAt: now,
+              });
+            }
+          }
+        }
+        break;
+      }
       case 'part':
         reissueId(parts, rejection.id, now);
         break;
@@ -402,16 +475,31 @@ export function applySyncResponse(
     : { ...current.settings, ...response.settings };
 
   const sentDeletions = new Set(
-    [...sent.vehicles, ...sent.parts, ...sent.notes, ...sent.timeEntries]
+    [
+      ...sent.vehicles,
+      ...(sent.jobs ?? []),
+      ...sent.parts,
+      ...sent.notes,
+      ...sent.timeEntries,
+    ]
       .filter(change => change.deletedAt)
       .map(change => change.id),
   );
 
+  // Records from the website or an older phone have no job yet.
+  const filed = fileUnderJobs(
+    {
+      vehicles: [...vehicles.values()],
+      jobs: [...jobs.values()],
+      trackedParts: [...parts.values()],
+      notes: [...notes.values()],
+      timeEntries: [...timeEntries.values()],
+    },
+    now,
+  );
+
   return {
-    vehicles: [...vehicles.values()],
-    trackedParts: [...parts.values()],
-    notes: [...notes.values()],
-    timeEntries: [...timeEntries.values()],
+    ...filed,
     settings,
     sync: {
       ...current.sync,

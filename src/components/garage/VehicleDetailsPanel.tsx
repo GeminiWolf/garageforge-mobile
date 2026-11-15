@@ -4,6 +4,7 @@ import { Clock, Gauge, Plus, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGarageStore } from '../../store/garageStore';
+import { openJobFor } from '../../store/jobs';
 import { colors, fontFamily, layout, radius, spacing } from '../../theme';
 import type { NoteKind, VehicleNote } from '../../types';
 import {
@@ -23,11 +24,15 @@ import { Text } from '../common/Text';
 
 type Props = {
   vehicleId: string;
-  /** Shown at the top (the Parts / Details switch). */
+  /** Shown at the top (the Job / Details / History switch). */
   header?: ReactNode;
+  /** Shown when the car isn't in the workshop, to start a job. */
+  onStartJob?: () => void;
 };
 
 type Sheet =
+  | { kind: 'customer' }
+  | { kind: 'plate' }
   | { kind: 'mileage' }
   | { kind: 'engineNumber' }
   | { kind: 'time' }
@@ -41,8 +46,9 @@ const NOTE_KINDS = [
 const QUICK_TIMES = [15, 30, 60, 120];
 
 /** Mileage, time spent, engine details and notes for one car. */
-export function VehicleDetailsPanel({ vehicleId, header }: Props) {
+export function VehicleDetailsPanel({ vehicleId, header, onStartJob }: Props) {
   const vehicle = useGarageStore(s => s.vehicles.find(v => v.id === vehicleId));
+  const openJobId = useGarageStore(s => openJobFor(s.jobs, vehicleId)?.id);
   const units = useGarageStore(s => s.settings.units);
   const allNotes = useGarageStore(s => s.notes);
   const allTimeEntries = useGarageStore(s => s.timeEntries);
@@ -56,20 +62,21 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
   const notes = useMemo(
     () =>
       allNotes
-        .filter(note => note.vehicleId === vehicleId)
+        // Notes and time belong to a job; past jobs are in History.
+        .filter(note => openJobId && note.jobId === openJobId)
         .sort((a, b) => b.writtenAt.localeCompare(a.writtenAt)),
-    [allNotes, vehicleId],
+    [allNotes, openJobId],
   );
   const timeEntries = useMemo(
     () =>
       allTimeEntries
-        .filter(entry => entry.vehicleId === vehicleId)
+        .filter(entry => openJobId && entry.jobId === openJobId)
         .sort(
           (a, b) =>
             b.workedOn.localeCompare(a.workedOn) ||
             b.updatedAt.localeCompare(a.updatedAt),
         ),
-    [allTimeEntries, vehicleId],
+    [allTimeEntries, openJobId],
   );
   const totalMinutes = timeEntries.reduce(
     (sum, entry) => sum + entry.minutes,
@@ -98,6 +105,10 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
           ? formatMileage(vehicle.mileage, units).replace(/ (km|mi)$/, '')
           : '',
       );
+    } else if (next.kind === 'customer') {
+      setText(vehicle.customerName ?? '');
+    } else if (next.kind === 'plate') {
+      setText(vehicle.plate ?? '');
     } else if (next.kind === 'engineNumber') {
       setText(vehicle.engineNumber ?? '');
     } else if (next.kind === 'note') {
@@ -128,6 +139,12 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
       }
       case 'engineNumber':
         updateVehicle(vehicleId, { engineNumber: text.toUpperCase() });
+        break;
+      case 'customer':
+        updateVehicle(vehicleId, { customerName: text });
+        break;
+      case 'plate':
+        updateVehicle(vehicleId, { plate: text });
         break;
       case 'time': {
         const total = parseDuration(hours, minutes);
@@ -188,6 +205,52 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
       >
         {header}
 
+        <View style={styles.panel}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              vehicle.customerName
+                ? `Customer ${vehicle.customerName}. Edit`
+                : 'Add customer'
+            }
+            onPress={() => open({ kind: 'customer' })}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+          >
+            <Text tone="muted">Customer</Text>
+            <Text
+              style={styles.rowValue}
+              tone={vehicle.customerName ? 'default' : 'accent'}
+              weight={vehicle.customerName ? 'regular' : 'medium'}
+              numberOfLines={1}
+            >
+              {vehicle.customerName ?? 'Add customer'}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              vehicle.plate
+                ? `Number plate ${vehicle.plate}. Edit`
+                : 'Add number plate'
+            }
+            onPress={() => open({ kind: 'plate' })}
+            style={({ pressed }) => [
+              styles.row,
+              styles.rowDivider,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text tone="muted">Number plate</Text>
+            <Text
+              style={styles.rowValue}
+              tone={vehicle.plate ? 'default' : 'accent'}
+              weight={vehicle.plate ? 'regular' : 'medium'}
+            >
+              {vehicle.plate ?? 'Add number plate'}
+            </Text>
+          </Pressable>
+        </View>
+
         <View style={styles.tiles}>
           <View style={styles.tile}>
             <View style={styles.tileLabel}>
@@ -223,12 +286,14 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
             <View style={styles.tileLabel}>
               <Clock size={16} color={colors.textMuted} />
               <Text size="md" tone="muted">
-                Time spent
+                {openJobId ? 'Time on this job' : 'Time'}
               </Text>
             </View>
             <Text style={styles.tileValue}>{formatDuration(totalMinutes)}</Text>
             <Text size="sm" tone="muted" numberOfLines={1}>
-              {lastEntry
+              {!openJobId
+                ? 'Not in the workshop'
+                : lastEntry
                 ? `Last: ${formatDuration(
                     lastEntry.minutes,
                   )}, ${formatShortDate(lastEntry.workedOn)}`
@@ -236,14 +301,16 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
             </Text>
             <Pressable
               accessibilityRole="button"
-              onPress={() => open({ kind: 'time' })}
+              onPress={() =>
+                openJobId ? open({ kind: 'time' }) : onStartJob?.()
+              }
               style={({ pressed }) => [
                 styles.logButton,
                 pressed && styles.pressed,
               ]}
             >
               <Text weight="semibold" style={styles.logLabel}>
-                Log time
+                {openJobId ? 'Log time' : 'Start a job'}
               </Text>
             </Pressable>
           </View>
@@ -289,25 +356,32 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
         </Section>
 
         <Section
-          title="Notes"
+          title={openJobId ? 'Notes on this job' : 'Notes'}
           action={
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => open({ kind: 'note' })}
-              hitSlop={spacing.sm}
-              style={({ pressed }) => [
-                styles.addAction,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Plus size={16} color={colors.accent} strokeWidth={2.4} />
-              <Text weight="semibold" tone="accent">
-                Add note
-              </Text>
-            </Pressable>
+            openJobId ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => open({ kind: 'note' })}
+                hitSlop={spacing.sm}
+                style={({ pressed }) => [
+                  styles.addAction,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Plus size={16} color={colors.accent} strokeWidth={2.4} />
+                <Text weight="semibold" tone="accent">
+                  Add note
+                </Text>
+              </Pressable>
+            ) : undefined
           }
         >
-          {notes.length === 0 ? (
+          {!openJobId ? (
+            <Text tone="muted" style={styles.empty}>
+              Notes are kept with each job. Past jobs and their notes are in
+              History.
+            </Text>
+          ) : notes.length === 0 ? (
             <Text tone="muted" style={styles.empty}>
               Write down what the customer reported, or a reminder for yourself.
             </Text>
@@ -387,7 +461,11 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
         compact
         onClose={close}
         title={
-          sheet?.kind === 'mileage'
+          sheet?.kind === 'customer'
+            ? 'Customer'
+            : sheet?.kind === 'plate'
+            ? 'Number plate'
+            : sheet?.kind === 'mileage'
             ? 'Mileage'
             : sheet?.kind === 'engineNumber'
             ? 'Engine number'
@@ -411,6 +489,35 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
                 <Text tone="muted">{units === 'imperial' ? 'mi' : 'km'}</Text>
               }
               accessibilityLabel="Odometer reading"
+              helper="Leave empty to clear it."
+            />
+          ) : null}
+
+          {sheet?.kind === 'customer' ? (
+            <Input
+              appearance="outlined"
+              size="lg"
+              autoFocus
+              autoCapitalize="words"
+              maxLength={120}
+              value={text}
+              onChangeText={setText}
+              accessibilityLabel="Customer name"
+              helper="Whose car it is. Leave empty to clear it."
+            />
+          ) : null}
+
+          {sheet?.kind === 'plate' ? (
+            <Input
+              appearance="outlined"
+              size="lg"
+              autoFocus
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={20}
+              value={text}
+              onChangeText={setText}
+              accessibilityLabel="Number plate"
               helper="Leave empty to clear it."
             />
           ) : null}

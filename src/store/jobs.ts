@@ -17,6 +17,7 @@ export function defaultJobId(vehicleId: string): string {
   if (!/^[0-9a-f]{8}$/i.test(head)) {
     return vehicleId;
   }
+  // eslint-disable-next-line no-bitwise
   const mixed = (parseInt(head, 16) ^ 0xa5c3e1f7) >>> 0;
   return mixed.toString(16).padStart(8, '0') + vehicleId.slice(8);
 }

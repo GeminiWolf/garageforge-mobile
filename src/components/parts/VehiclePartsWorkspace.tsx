@@ -42,6 +42,8 @@ type Scope = 'open' | 'urgent' | 'all';
 
 type Props = {
   vehicleId: string;
+  /** Only this job's parts (the car's current job). */
+  jobId?: string;
   navigation: NativeStackNavigationProp<GarageStackParamList>;
   /** Shown above the overview (the Parts / Details switch). */
   header?: ReactNode;
@@ -49,6 +51,7 @@ type Props = {
 
 export function VehiclePartsWorkspace({
   vehicleId,
+  jobId,
   navigation,
   header,
 }: Props) {
@@ -62,8 +65,12 @@ export function VehiclePartsWorkspace({
   const currency = useGarageStore(s => s.settings.currency);
 
   const parts = useMemo(
-    () => trackedParts.filter(part => part.vehicleId === vehicleId),
-    [trackedParts, vehicleId],
+    () =>
+      trackedParts.filter(
+        part =>
+          part.vehicleId === vehicleId && (!jobId || part.jobId === jobId),
+      ),
+    [trackedParts, vehicleId, jobId],
   );
   const openParts = parts.filter(part => part.status !== 'installed');
   const urgentParts = openParts.filter(part => part.priority === 'urgent');
@@ -267,8 +274,8 @@ export function VehiclePartsWorkspace({
         ListEmptyComponent={
           parts.length === 0 ? (
             <EmptyState
-              title="No parts on this car yet"
-              subtitle="Add the parts this car needs. Tick one off when it’s installed."
+              title="No parts on this job yet"
+              subtitle="Add the parts this job needs. Tick one off when it’s installed."
               actionLabel="Add part"
               onAction={() => navigation.navigate('AddPart', { vehicleId })}
             />

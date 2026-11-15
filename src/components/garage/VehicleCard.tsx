@@ -1,45 +1,50 @@
-import { hasPartEstimate } from '../../utils/partEstimate';
 import React from 'react';
-import { ChevronRight } from 'lucide-react-native';
+import { Car, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
-import type { Vehicle } from '../../types';
-import { getVehicleHealth } from '../../utils/healthSummary';
-import type { TrackedPart } from '../../types';
-import { colors, layout, spacing, tabularNums } from '../../theme';
-import { Text } from '../common/Text';
+import type { TrackedPart, Vehicle } from '../../types';
+import { colors, radius, spacing, tabularNums } from '../../theme';
+import { useGarageStore } from '../../store/garageStore';
 import { getBudgetParts, sumEstimatedCost } from '../../utils/budgetPlanner';
+import { getCommittedSpend } from '../../utils/budgetStatus';
 import { formatMoney } from '../../utils/formatMoney';
 import {
+  formatVehicleMeta,
   formatVehicleName,
   formatVehicleTitle,
-  formatVehicleMeta,
 } from '../../utils/formatVehicleName';
-import { useGarageStore } from '../../store/garageStore';
-import { getCommittedSpend } from '../../utils/budgetStatus';
-import { makeBadge } from '../../utils/makeBadge';
+import { getVehicleHealth } from '../../utils/healthSummary';
+import { hasPartEstimate } from '../../utils/partEstimate';
+import { Button } from '../common/Button';
+import { ProgressBar } from '../common/ProgressBar';
+import { StatusPill } from '../common/StatusPill';
+import { Text } from '../common/Text';
 
 type Props = {
   vehicle: Vehicle;
   parts: TrackedPart[];
   onPress: () => void;
+  onAddParts: () => void;
   onLongPress?: () => void;
 };
 
-export function VehicleCard({ vehicle, parts, onPress, onLongPress }: Props) {
+export function VehicleCard({
+  vehicle,
+  parts,
+  onPress,
+  onAddParts,
+  onLongPress,
+}: Props) {
+  const currency = useGarageStore(s => s.settings.currency);
   const health = getVehicleHealth(parts);
   const title = formatVehicleName(vehicle);
-  const meta = formatVehicleMeta(vehicle);
-  const currency = useGarageStore(s => s.settings.currency);
-  const openParts = parts.filter(part => part.status !== 'installed');
+  const installed = parts.filter(part => part.status === 'installed').length;
+  const toSource = health.neededCount + health.sourcingCount;
   const budgetParts = getBudgetParts(parts);
-  const missingEstimates = budgetParts.filter(
-    part => !hasPartEstimate(part),
-  ).length;
-  const totalEstimatedCost = sumEstimatedCost(getBudgetParts(parts));
+  const allUnestimated =
+    budgetParts.length > 0 && budgetParts.every(part => !hasPartEstimate(part));
+  const stillToBuy = sumEstimatedCost(budgetParts);
   const spentOrOrdered = getCommittedSpend(parts);
-  const showSpent =
-    budgetParts.length === 0 && spentOrOrdered > 0 && parts.length > 0;
-  const badge = makeBadge(vehicle.make);
+  const progressLabel = `${installed} of ${parts.length} installed`;
 
   return (
     <Pressable
@@ -48,100 +53,152 @@ export function VehicleCard({ vehicle, parts, onPress, onLongPress }: Props) {
       onLongPress={onLongPress}
       delayLongPress={400}
       accessibilityRole="button"
-      accessibilityLabel={`${title}, ${health.summary}`}
-      accessibilityHint="Opens this build. Touch and hold to remove."
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      accessibilityLabel={`${title}, ${
+        parts.length ? progressLabel : 'no parts yet'
+      }`}
+      accessibilityHint="Opens this car. Touch and hold to remove."
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       <View style={styles.identity}>
-        <View
-          style={[styles.vehicleIcon, { backgroundColor: badge.color }]}
-          accessible={false}
-        >
-          <Text variant="title" style={styles.initial}>
-            {badge.initial}
-          </Text>
+        <View style={styles.iconTile}>
+          <Car size={26} color={colors.accent} strokeWidth={1.8} />
         </View>
         <View style={styles.body}>
-          <Text variant="subtitle">{formatVehicleTitle(vehicle)}</Text>
-          <Text variant="caption" tone="muted">
-            {meta}
+          <Text
+            variant="subtitle"
+            weight="semibold"
+            style={styles.name}
+            numberOfLines={1}
+          >
+            {formatVehicleTitle(vehicle)}
+          </Text>
+          <Text size="md" tone="muted" numberOfLines={1}>
+            {formatVehicleMeta(vehicle)}
           </Text>
         </View>
-        <ChevronRight size={20} color={colors.textMuted} />
+        <ChevronRight size={20} color={colors.textDim} />
       </View>
-      <View style={styles.divider} />
-      <View style={styles.details}>
-        <View style={styles.body}>
-          <View style={styles.statusRow}>
-            {health.urgentCount ? <View style={styles.urgentDot} /> : null}
-            <Text variant="caption" tone="muted">
-              {health.urgentCount ? `${health.urgentCount} urgent · ` : ''}
-              {parts.length
-                ? `${openParts.length} ${
-                    openParts.length === 1 ? 'part' : 'parts'
-                  } to go`
-                : 'No parts added'}
-            </Text>
+
+      {parts.length === 0 ? (
+        <View style={styles.emptyRow}>
+          <Text size="md" tone="muted">
+            No parts yet
+          </Text>
+          <Button
+            label="Add parts"
+            variant="secondary"
+            size="sm"
+            onPress={onAddParts}
+          />
+        </View>
+      ) : (
+        <>
+          <View style={styles.progress}>
+            <View style={styles.progressLabels}>
+              <Text size="md">{progressLabel}</Text>
+              <Text size="md" tone="muted" style={tabularNums}>
+                {Math.round((installed / parts.length) * 100)}%
+              </Text>
+            </View>
+            <ProgressBar
+              value={installed}
+              max={parts.length}
+              accessibilityLabel={progressLabel}
+            />
           </View>
-          <Text variant="caption" tone="muted">
-            {parts.length === 0
-              ? 'Add the parts this car needs'
-              : health.orderedCount
-              ? `${health.orderedCount} awaiting delivery`
-              : openParts.length
-              ? `${health.neededCount + health.sourcingCount} to source`
-              : 'All parts installed'}
-          </Text>
-        </View>
-        <View style={styles.cost}>
-          <Text variant="label" tone="muted">
-            {showSpent
-              ? 'Spent or ordered'
-              : missingEstimates
-              ? 'Known estimates'
-              : 'Still to buy'}
-          </Text>
-          <Text variant="subtitle" style={tabularNums}>
-            {showSpent
-              ? formatMoney(spentOrOrdered, currency)
-              : budgetParts.length && missingEstimates === budgetParts.length
-              ? 'Not estimated'
-              : formatMoney(totalEstimatedCost, currency)}
-          </Text>
-        </View>
-      </View>
+
+          {health.urgentCount || health.orderedCount || toSource ? (
+            <View style={styles.pills}>
+              {health.urgentCount ? (
+                <StatusPill
+                  size="md"
+                  tone="danger"
+                  dot
+                  label={`${health.urgentCount} urgent`}
+                />
+              ) : null}
+              {health.orderedCount ? (
+                <StatusPill
+                  size="md"
+                  tone="warning"
+                  label={`${health.orderedCount} awaiting delivery`}
+                />
+              ) : null}
+              {toSource ? (
+                <StatusPill
+                  size="md"
+                  tone="neutral"
+                  label={`${toSource} to source`}
+                />
+              ) : null}
+            </View>
+          ) : null}
+
+          <View style={styles.tiles}>
+            <View style={styles.tile}>
+              <Text size="md" tone="muted">
+                Spent or ordered
+              </Text>
+              <Text weight="semibold" style={[styles.amount, tabularNums]}>
+                {formatMoney(spentOrOrdered, currency)}
+              </Text>
+            </View>
+            <View style={styles.tile}>
+              <Text size="md" tone="muted">
+                Still to buy
+              </Text>
+              <Text weight="semibold" style={[styles.amount, tabularNums]}>
+                {allUnestimated
+                  ? 'Not estimated'
+                  : formatMoney(stillToBuy, currency)}
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    padding: spacing.lg,
+  card: {
+    padding: 18,
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 16,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     gap: spacing.lg,
   },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  vehicleIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
+  pressed: { opacity: 0.85 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  iconTile: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.accentTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  initial: { color: '#FFFFFF' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  urgentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.danger,
+  body: { flex: 1, minWidth: 0, gap: 2 },
+  name: { fontSize: 18, lineHeight: 24 },
+  amount: { fontSize: 18, lineHeight: 24 },
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    paddingTop: 14,
   },
-  divider: { height: layout.hairline, backgroundColor: colors.border },
-  details: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  cost: { alignItems: 'flex-end', gap: spacing.xs },
-  pressed: { opacity: 0.72 },
-  body: { flex: 1, gap: 4 },
+  progress: { gap: spacing.sm },
+  progressLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tiles: { flexDirection: 'row', gap: spacing.sm },
+  tile: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSunken,
+    gap: 2,
+  },
 });

@@ -41,9 +41,9 @@ const RADIUS_VALUES: Record<Radius, number> = {
 };
 
 const DEFAULT_RADIUS: Record<Size, Radius> = {
-  sm: 'sm',
-  md: 'sm',
-  lg: 'sm',
+  sm: 'full',
+  md: 'md',
+  lg: 'lg',
 };
 
 export function Button({
@@ -78,7 +78,8 @@ export function Button({
         sizeStyles[size],
         { borderRadius },
         pressed && !isDisabled && styles.pressed,
-        isDisabled && styles.disabled,
+        isDisabled &&
+          (variant === 'primary' ? styles.disabledPrimary : styles.disabled),
         style,
       ]}
     >
@@ -94,6 +95,7 @@ export function Button({
               (variant === 'secondary' || variant === 'ghost') &&
                 styles.labelDark,
               variant === 'danger' && styles.labelDanger,
+              isDisabled && variant === 'primary' && styles.labelDisabled,
             ]}
           >
             {label}
@@ -107,22 +109,22 @@ export function Button({
 
 const sizeStyles = StyleSheet.create({
   sm: {
-    minHeight: 32,
-    paddingHorizontal: spacing.md,
+    minHeight: 36,
+    paddingHorizontal: spacing.md + 2,
   },
   md: {
     minHeight: 44,
     paddingHorizontal: spacing.lg,
   },
   lg: {
-    minHeight: 52,
+    minHeight: 56,
     paddingHorizontal: spacing.xl,
   },
 });
 
 const labelSizeStyles = StyleSheet.create({
   sm: {
-    fontSize: 12,
+    fontSize: 14,
   },
   md: {
     fontSize: 15,
@@ -147,8 +149,8 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: 'transparent',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
   },
   danger: {
     backgroundColor: 'transparent',
@@ -163,6 +165,13 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
+  },
+  // A greyed-out button, not a muddy green one.
+  disabledPrimary: {
+    backgroundColor: colors.neutralSoft,
+  },
+  labelDisabled: {
+    color: colors.textDim,
   },
   label: {
     ...typography.subtitle,

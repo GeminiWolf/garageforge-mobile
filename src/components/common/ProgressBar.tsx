@@ -17,9 +17,9 @@ type Props = {
 export function ProgressBar({
   value,
   max,
-  height = 2,
+  height = 8,
   color,
-  trackColor = colors.slate600,
+  trackColor = colors.track,
   warning = false,
   style,
   accessibilityLabel = 'Progress',
@@ -38,7 +38,11 @@ export function ProgressBar({
         max: Math.max(0, max),
         now: Math.max(0, value),
       }}
-      style={[styles.track, { height, backgroundColor: trackColor }, style]}
+      style={[
+        styles.track,
+        { height, borderRadius: height / 2, backgroundColor: trackColor },
+        style,
+      ]}
     >
       <View
         style={[
@@ -46,6 +50,7 @@ export function ProgressBar({
           {
             width: `${fill * 100}%`,
             height,
+            borderRadius: height / 2,
             backgroundColor: fillColor,
           },
         ]}

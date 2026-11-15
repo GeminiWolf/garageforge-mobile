@@ -173,9 +173,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderBottomWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
+    borderColor: colors.borderSubtle,
+    borderRadius: 14,
+    paddingHorizontal: 14,
   },
   fieldFocused: {
     borderBottomColor: colors.accent,

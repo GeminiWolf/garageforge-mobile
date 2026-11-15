@@ -7,25 +7,43 @@ export const colors = {
   border: '#2C3236',
   borderSubtle: '#24292D',
   text: '#E7E4DC',
-  textMuted: '#8F948C',
-  textDim: '#6D736C',
+  textMuted: '#9BA097',
+  /** Faintest text; still at least 4.5:1 on surfaces. */
+  textDim: '#858B83',
   accent: '#8FB089',
   accentDim: '#6F8C6A',
   accentSoft: '#1B231C',
-  danger: '#C45C5C',
-  warning: '#C4A15A',
+  /** Selected chips, active tab pill, secondary filled buttons. */
+  accentContainer: '#263026',
+  /** Icon tiles and catalogue tags. */
+  accentTint: '#1F2A20',
+  onAccentContainer: '#CFE3CA',
+  /** Inner tiles inside a panel. */
+  surfaceSunken: '#16191C',
+  borderStrong: '#3A423D',
+  dangerSoft: 'rgba(212, 106, 106, 0.14)',
+  dangerText: '#E8A3A3',
+  warningSoft: 'rgba(212, 176, 106, 0.14)',
+  warningText: '#E2C68C',
+  infoSoft: 'rgba(120, 160, 210, 0.16)',
+  infoText: '#A9C4E6',
+  neutralSoft: '#24292D',
+  neutralText: '#C9C6BE',
+  track: '#2A3035',
+  danger: '#D46A6A',
+  warning: '#D4B06A',
   info: '#8F948C',
   white: '#E7E4DC',
   black: '#0B0D0F',
   overlay: 'rgba(10, 12, 14, 0.72)',
   chipBg: 'transparent',
   chipActive: 'transparent',
-  urgent: '#C45C5C',
+  urgent: '#D46A6A',
   soon: '#8F948C',
   someday: '#6D736C',
   needed: '#8F948C',
   sourcing: '#8F948C',
-  ordered: '#C4A15A',
+  ordered: '#D4B06A',
   installed: '#6D736C',
   graySoft: '#8F948C',
   slate200: '#E7E4DC',
@@ -47,16 +65,20 @@ export const spacing = {
   xxl: 40,
 };
 
+/** Controls 12, buttons and inputs 12–16, panels 20, pills fully round. */
 export const radius = {
-  sm: 4,
-  md: 6,
-  lg: 8,
-  xl: 12,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  full: 999,
 };
 
 export const layout = {
   gutter: 20,
   rowMinHeight: 64,
+  /** Space under scroll content so the floating action button never covers it. */
+  fabClearance: 96,
   hairline: StyleSheet.hairlineWidth,
 };
 

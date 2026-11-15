@@ -15,7 +15,7 @@ export function Checkbox({
   checked = false,
   onChange,
   disabled = false,
-  size = 20,
+  size = 24,
   accessibilityLabel = 'Checkbox',
 }: Props) {
   return (
@@ -35,7 +35,7 @@ export function Checkbox({
         {
           width: size,
           height: size,
-          borderRadius: 2,
+          borderRadius: Math.round(size / 3),
         },
         checked && styles.checked,
         disabled && styles.disabled,
@@ -59,8 +59,8 @@ const styles = StyleSheet.create({
   box: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.slate400,
+    borderWidth: 2,
+    borderColor: '#5C635B',
     backgroundColor: 'transparent',
   },
   checked: {

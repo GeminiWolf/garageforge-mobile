@@ -5,6 +5,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { EmptyState } from '../../components/common/EmptyState';
+import { Fab } from '../../components/common/Fab';
 import { Screen } from '../../components/common/Screen';
 import { Text } from '../../components/common/Text';
 import { VehicleCard } from '../../components/garage/VehicleCard';
@@ -15,6 +16,7 @@ import type {
 import { useGarageStore } from '../../store/garageStore';
 import { confirmRemoveVehicle } from '../../utils/confirmRemoveVehicle';
 import { formatVehicleName } from '../../utils/formatVehicleName';
+import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import { colors, layout, radius, spacing } from '../../theme';
 import {
   dismissBackupHint,
@@ -38,6 +40,7 @@ export function GarageHomeScreen({ navigation }: Props) {
   const trackedParts = useGarageStore(s => s.trackedParts);
   const removeVehicle = useGarageStore(s => s.removeVehicle);
   const signedIn = useGarageStore(s => s.account !== null);
+  const lastSyncedAt = useGarageStore(s => s.sync.lastSyncedAt);
   const [showBackupHint, setShowBackupHint] = useState(false);
 
   // First launch: introduce the app once, before the first car is added.
@@ -95,6 +98,9 @@ export function GarageHomeScreen({ navigation }: Props) {
               onPress={() => {
                 navigation.navigate('CarDashboard', { vehicleId: item.id });
               }}
+              onAddParts={() => {
+                navigation.navigate('AddPart', { vehicleId: item.id });
+              }}
               onLongPress={() => {
                 confirmRemoveVehicle(formatVehicleName(item), () => {
                   removeVehicle(item.id);
@@ -136,16 +142,25 @@ export function GarageHomeScreen({ navigation }: Props) {
           }
           ListHeaderComponent={
             <View style={styles.intro}>
-              <Text variant="hero">Your builds</Text>
-              <Text variant="caption" tone="muted">
+              <Text size="md" tone="muted">
                 {vehicles.length}{' '}
-                {vehicles.length === 1 ? 'vehicle' : 'vehicles'} in your garage
+                {vehicles.length === 1 ? 'vehicle' : 'vehicles'}
+                {signedIn && lastSyncedAt
+                  ? ` · synced ${formatRelativeTime(lastSyncedAt)}`
+                  : ''}
               </Text>
             </View>
           }
           ItemSeparatorComponent={VehicleSeparator}
         />
       )}
+      {vehicles.length > 0 ? (
+        <Fab
+          aboveSystemBar={false}
+          label="Add vehicle"
+          onPress={() => navigation.navigate('AddVehicle')}
+        />
+      ) : null}
     </View>
   );
 }
@@ -153,9 +168,9 @@ export function GarageHomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   backupHint: {
     marginTop: spacing.lg,
-    padding: spacing.lg,
+    padding: 18,
     gap: spacing.xs,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surfaceRaised,
@@ -165,7 +180,7 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     marginTop: spacing.sm,
   },
-  intro: { gap: spacing.sm, paddingTop: spacing.xl, paddingBottom: spacing.xl },
+  intro: { paddingBottom: spacing.lg },
   container: {
     flex: 1,
   },
@@ -174,6 +189,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: layout.gutter,
-    paddingBottom: layout.gutter,
+    paddingBottom: layout.fabClearance,
   },
 });

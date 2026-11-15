@@ -4,6 +4,7 @@ import { colors, radius as themeRadius, shadows, spacing } from '../../theme';
 
 type Padding = 'none' | 'sm' | 'md' | 'lg';
 type Radius = 'sm' | 'md' | 'lg' | 'xl';
+
 type Tone = 'surface' | 'raised' | 'transparent';
 type ThemeColor = keyof typeof colors;
 

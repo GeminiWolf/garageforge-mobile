@@ -11,6 +11,8 @@ type AppHeaderProps = {
   title: ReactNode;
   onBack?: () => void;
   right?: ReactNode;
+  /** A large page title for top-level tabs. */
+  large?: boolean;
 };
 
 export function HeaderAction({
@@ -34,8 +36,21 @@ export function HeaderAction({
   );
 }
 
-export function AppHeader({ title, onBack, right }: AppHeaderProps) {
+export function AppHeader({ title, onBack, right, large }: AppHeaderProps) {
   const { top } = useSafeAreaInsets();
+
+  if (large) {
+    return (
+      <View style={[styles.largeBar, { paddingTop: top + spacing.lg }]}>
+        <View style={styles.title} accessibilityRole="header">
+          <Text variant="hero" numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+        {right ? <View style={styles.right}>{right}</View> : null}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.bar, { paddingTop: top + spacing.sm }]}>
@@ -104,8 +119,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     backgroundColor: colors.bg,
     minHeight: 44,
-    borderBottomColor: colors.borderSubtle,
-    borderBottomWidth: 1,
+  },
+  largeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: layout.gutter,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.bg,
   },
   back: {
     minWidth: 44,

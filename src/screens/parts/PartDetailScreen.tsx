@@ -1,48 +1,30 @@
+import { toDateKey } from '../../utils/vehicleDetails';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Check } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
-import { Chip } from '../../components/common/Chip';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Input } from '../../components/common/Input';
 import { Screen } from '../../components/common/Screen';
-import { SectionHeader } from '../../components/common/SectionHeader';
+import { SegmentedControl } from '../../components/common/SegmentedControl';
 import { SheetFrame } from '../../components/common/SheetFrame';
 import { Text } from '../../components/common/Text';
+import { StatusStepper } from '../../components/parts/StatusStepper';
 import type { GarageStackParamList } from '../../navigation/types';
 import { useGarageStore } from '../../store/garageStore';
 import type { PartPriority, PartStatus } from '../../types';
 import { hasPartEstimate } from '../../utils/partEstimate';
-import { colors, spacing } from '../../theme';
+import { colors, fontFamily, radius, spacing } from '../../theme';
+import { PRIORITY_LABELS } from '../../utils/partStatus';
 import { getCurrencySymbol } from '../../utils/formatMoney';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<GarageStackParamList, 'PartDetail'>;
 
 const PRIORITIES: PartPriority[] = ['urgent', 'soon', 'someday'];
-const STATUSES: PartStatus[] = ['needed', 'sourcing', 'ordered', 'installed'];
 const SAVE_DEBOUNCE_MS = 500;
-
-const STATUS_LABELS: Record<PartStatus, string> = {
-  needed: 'To source',
-  sourcing: 'Sourcing',
-  ordered: 'Awaiting delivery',
-  installed: 'Installed',
-};
-
-const PRIORITY_LABELS: Record<PartPriority, string> = {
-  urgent: 'Urgent',
-  soon: 'Soon',
-  someday: 'Someday',
-};
-
-/** Local calendar date as YYYY-MM-DD. */
-export function toDateKey(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 type PartDraft = {
   name: string;
@@ -193,114 +175,133 @@ export function PartDetailScreen({ navigation, route }: Props) {
     );
   }
 
+  const setStatus = (status: PartStatus) => {
+    updateTrackedPart(part.id, { status });
+    flashSaved();
+  };
+
   return (
     <Screen scroll>
       <View style={styles.headerRow}>
-        <Text variant="caption" tone="dim">
-          {part.category}
+        <Text size="md" tone="muted">
+          {part.category || 'Part'}
         </Text>
         {savedVisible ? (
-          <Text variant="caption" tone="accent" weight="semibold">
+          <Text size="md" tone="accent" weight="semibold">
             Saved
           </Text>
         ) : null}
       </View>
 
-      <SectionHeader title="Status" />
-      <View style={styles.chips}>
-        {STATUSES.map(s => (
-          <Chip
-            key={s}
-            label={STATUS_LABELS[s]}
-            selected={part.status === s}
-            onPress={() => {
-              updateTrackedPart(part.id, { status: s });
-              flashSaved();
-            }}
-          />
-        ))}
+      <View style={[styles.panel, styles.section]}>
+        <Text style={styles.sectionTitle}>STATUS</Text>
+        <StatusStepper value={part.status} onChange={setStatus} />
       </View>
 
-      <SectionHeader title="Priority" />
-      <View style={styles.chips}>
-        {PRIORITIES.map(p => (
-          <Chip
-            key={p}
-            label={PRIORITY_LABELS[p]}
-            selected={part.priority === p}
-            onPress={() => {
-              updateTrackedPart(part.id, { priority: p });
-              flashSaved();
-            }}
-          />
-        ))}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>PRIORITY</Text>
+        <SegmentedControl
+          accessibilityLabel="Priority"
+          value={part.priority}
+          onChange={priority => {
+            updateTrackedPart(part.id, { priority });
+            flashSaved();
+          }}
+          segments={PRIORITIES.map(priority => ({
+            value: priority,
+            label: PRIORITY_LABELS[priority],
+            ...(priority === 'urgent'
+              ? { selectedBg: colors.dangerSoft, selectedFg: colors.dangerText }
+              : {}),
+          }))}
+        />
       </View>
 
-      <SectionHeader title="Cost" />
-      <Input
-        label="Estimated cost"
-        leftSection={currencySymbol}
-        value={draft.estimatedCost}
-        onChangeText={v => updateDraftField('estimatedCost', v)}
-        keyboardType="decimal-pad"
-        containerStyle={styles.field}
-      />
-      <Input
-        label="Actual cost"
-        leftSection={currencySymbol}
-        placeholder="Add when you’ve paid"
-        value={draft.actualCost}
-        onChangeText={v => updateDraftField('actualCost', v)}
-        keyboardType="decimal-pad"
-        containerStyle={styles.field}
-      />
-      {draft.actualCost.trim() !== '' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Paid on ${paidLabel}. Change date`}
-          onPress={() => setDatePickerOpen(true)}
-          style={({ pressed }) => [styles.dateRow, pressed && styles.pressed]}
-        >
-          <View>
-            <Text variant="caption" tone="muted">
-              Paid on
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>COST</Text>
+        <View style={styles.costRow}>
+          <Input
+            appearance="outlined"
+            size="lg"
+            label="Estimated"
+            leftSection={currencySymbol}
+            value={draft.estimatedCost}
+            onChangeText={v => updateDraftField('estimatedCost', v)}
+            keyboardType="decimal-pad"
+            containerStyle={styles.flex}
+          />
+          <Input
+            appearance="outlined"
+            size="lg"
+            label="Actual"
+            leftSection={currencySymbol}
+            placeholder="When paid"
+            value={draft.actualCost}
+            onChangeText={v => updateDraftField('actualCost', v)}
+            keyboardType="decimal-pad"
+            containerStyle={styles.flex}
+          />
+        </View>
+        {draft.actualCost.trim() !== '' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Paid on ${paidLabel}. Change date`}
+            onPress={() => setDatePickerOpen(true)}
+            style={({ pressed }) => [
+              styles.panel,
+              styles.dateRow,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View>
+              <Text size="md" tone="muted">
+                Paid on
+              </Text>
+              <Text>{paidLabel}</Text>
+            </View>
+            <Text weight="semibold" tone="accent">
+              Change
             </Text>
-            <Text>{paidLabel}</Text>
-          </View>
-          <Text weight="medium" tone="accent">
-            Change
-          </Text>
-        </Pressable>
-      ) : null}
+          </Pressable>
+        ) : null}
+      </View>
 
-      <SectionHeader title="Details" />
-      <Input
-        label="Name"
-        value={draft.name}
-        onChangeText={v => updateDraftField('name', v)}
-        containerStyle={styles.field}
-      />
-      <Input
-        label="Part number"
-        placeholder="Optional"
-        value={draft.partNumber}
-        onChangeText={v => updateDraftField('partNumber', v)}
-        containerStyle={styles.field}
-      />
-      <Input
-        label="Where to buy"
-        placeholder="Optional: shop or link"
-        value={draft.source}
-        onChangeText={v => updateDraftField('source', v)}
-        containerStyle={styles.field}
-      />
-      <Input
-        label="Notes"
-        placeholder="Optional"
-        value={draft.notes}
-        onChangeText={v => updateDraftField('notes', v)}
-        containerStyle={styles.field}
-      />
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>DETAILS</Text>
+        <Input
+          appearance="outlined"
+          size="lg"
+          label="Name"
+          value={draft.name}
+          onChangeText={v => updateDraftField('name', v)}
+        />
+        <Input
+          appearance="outlined"
+          size="lg"
+          label="Part number"
+          placeholder="Optional"
+          value={draft.partNumber}
+          onChangeText={v => updateDraftField('partNumber', v)}
+        />
+        <Input
+          appearance="outlined"
+          size="lg"
+          label="Where to buy"
+          placeholder="Optional: shop or link"
+          value={draft.source}
+          onChangeText={v => updateDraftField('source', v)}
+        />
+        <Input
+          appearance="outlined"
+          size="lg"
+          label="Notes"
+          placeholder="Optional"
+          multiline
+          value={draft.notes}
+          onChangeText={v => updateDraftField('notes', v)}
+          inputStyle={styles.notes}
+        />
+      </View>
 
       {datePickerOpen && Platform.OS === 'android' ? (
         <DateTimePicker
@@ -336,53 +337,68 @@ export function PartDetailScreen({ navigation, route }: Props) {
         <Button label="Done" onPress={() => setDatePickerOpen(false)} />
       </SheetFrame>
 
-      <Button
-        label="Remove from this build"
-        variant="danger"
-        onPress={() => {
-          Alert.alert('Delete part', 'Remove this part from the tracker?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: () => {
-                removeTrackedPart(part.id);
-                navigation.goBack();
+      <View style={[styles.actions, { marginBottom: bottom + spacing.md }]}>
+        {part.status !== 'installed' ? (
+          <Button
+            label="Mark as installed"
+            size="lg"
+            leftIcon={<Check size={20} color={colors.bg} strokeWidth={2.6} />}
+            onPress={() => setStatus('installed')}
+          />
+        ) : null}
+        <Button
+          label="Remove from this car"
+          variant="danger"
+          onPress={() => {
+            Alert.alert('Delete part', 'Remove this part from this car?', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: () => {
+                  removeTrackedPart(part.id);
+                  navigation.goBack();
+                },
               },
-            },
-          ]);
-        }}
-        style={{ marginTop: spacing.xl, marginBottom: bottom + spacing.md }}
-      />
+            ]);
+          }}
+        />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     marginBottom: spacing.md,
   },
-  field: {
-    marginBottom: spacing.sm,
+  section: { gap: spacing.sm, marginBottom: spacing.lg },
+  sectionTitle: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    color: colors.textMuted,
   },
+  panel: {
+    padding: 18,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  costRow: { flexDirection: 'row', gap: spacing.sm },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 52,
-    marginBottom: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    paddingVertical: spacing.md,
   },
+  notes: { minHeight: 88, textAlignVertical: 'top' },
+  actions: { gap: spacing.sm, marginTop: spacing.sm },
   pressed: {
     opacity: 0.72,
   },

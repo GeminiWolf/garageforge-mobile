@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, spacing } from '../../theme';
+import { colors, radius, spacing } from '../../theme';
 import { getListItemAccessibilityLabel } from './listHelpers';
 import { getListIcon, type ListIconName } from './listIcons';
 import { Divider } from './Divider';
@@ -29,6 +29,10 @@ type ListItemProps = {
   style?: StyleProp<ViewStyle>;
   rightSection?: ReactNode;
   value?: string;
+  /** "danger" for destructive rows such as deleting an account. */
+  tone?: 'default' | 'danger';
+  /** Arrow on the right; off for rows that act instead of opening a screen. */
+  chevron?: boolean;
 };
 
 function ListView({ children, style }: ListViewProps) {
@@ -56,6 +60,8 @@ function ListItem({
   style,
   rightSection,
   value,
+  tone = 'default',
+  chevron = true,
 }: ListItemProps) {
   const Icon = icon != null ? getListIcon(icon) : null;
   const accessibilityLabel = getListItemAccessibilityLabel(label, description);
@@ -63,13 +69,15 @@ function ListItem({
     <>
       {Icon != null ? (
         <View accessible={false}>
-          <Icon size={18} color={colors.textDim} />
+          <Icon size={18} color={colors.textMuted} />
         </View>
       ) : null}
       <View style={styles.body}>
-        <Text weight="medium">{label}</Text>
+        <Text weight="medium" tone={tone === 'danger' ? 'danger' : 'default'}>
+          {label}
+        </Text>
         {description != null && description !== '' ? (
-          <Text size="sm" tone="muted" numberOfLines={2}>
+          <Text size="md" tone="muted" numberOfLines={2}>
             {description}
           </Text>
         ) : null}
@@ -79,11 +87,11 @@ function ListItem({
       ) : (
         <View style={styles.chevronWrap}>
           {value && (
-            <Text tone="muted" size="sm">
+            <Text tone="muted" size="md">
               {value}
             </Text>
           )}
-          {onPress != null ? (
+          {onPress != null && chevron ? (
             <ChevronRight size={18} color={colors.textDim} accessible={false} />
           ) : null}
         </View>
@@ -121,8 +129,14 @@ export const List = {
 };
 
 const styles = StyleSheet.create({
+  // Rows grouped in one rounded panel.
   view: {
     alignSelf: 'stretch',
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   item: {
     flexDirection: 'row',
@@ -140,6 +154,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     marginVertical: 0,
+    backgroundColor: colors.borderSubtle,
   },
   chevronWrap: {
     flexDirection: 'row',

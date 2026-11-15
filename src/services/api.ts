@@ -21,14 +21,27 @@ import {
   parseContentDispositionFilename,
 } from '../utils/garageExport';
 
+export const OFFLINE_MESSAGE =
+  'You’re offline. Check your connection and try again.';
+
 export class ApiError extends Error {
   status?: number;
+  /** True when the request never reached the server (no connection). */
+  offline: boolean;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, offline = false) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.offline = offline;
   }
+}
+
+/** A message people can act on, for a failed response with no usable body. */
+export function fallbackErrorMessage(status: number): string {
+  return status >= 500
+    ? 'Something went wrong on our side. Try again in a moment.'
+    : `Something went wrong (${status}). Try again.`;
 }
 
 const API_VERSION = 'v1';
@@ -144,13 +157,13 @@ export async function request<T>(
       ...(controller ? { signal: controller.signal } : {}),
     });
   } catch {
-    throw new ApiError('Unable to reach API. Check the base URL and network.');
+    throw new ApiError(OFFLINE_MESSAGE, undefined, true);
   } finally {
     if (timeout) clearTimeout(timeout);
   }
 
   if (!response.ok) {
-    let message = `Request failed (${response.status})`;
+    let message = fallbackErrorMessage(response.status);
     try {
       const body = await response.json();
       if (body?.message) {
@@ -302,11 +315,11 @@ export async function exportVehiclePdf(
       body,
     });
   } catch {
-    throw new ApiError('Unable to reach API. Check the base URL and network.');
+    throw new ApiError(OFFLINE_MESSAGE, undefined, true);
   }
 
   if (!response.ok) {
-    let message = `Request failed (${response.status})`;
+    let message = fallbackErrorMessage(response.status);
     try {
       const errorBody = await response.json();
       if (errorBody?.message) {

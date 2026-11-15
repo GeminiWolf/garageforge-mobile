@@ -1,4 +1,4 @@
-import { ApiError, buildRequestHeaders, request } from './api';
+import { ApiError, NO_COOKIES, buildRequestHeaders, request } from './api';
 import type { Account } from '../types/garage';
 import type { ServerSettings } from './syncTypes';
 
@@ -24,6 +24,7 @@ async function authenticate(
   try {
     response = await fetch(`${trimBase(baseUrl)}${path}`, {
       method: 'POST',
+      credentials: NO_COOKIES,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -75,6 +76,7 @@ export async function signOutRemote(baseUrl: string): Promise<void> {
   try {
     await fetch(`${trimBase(baseUrl)}/api/auth/sign-out`, {
       method: 'POST',
+      credentials: NO_COOKIES,
       headers: buildRequestHeaders({ body: '{}' }),
       body: '{}',
     });

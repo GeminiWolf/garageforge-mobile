@@ -33,6 +33,14 @@ export class ApiError extends Error {
 
 const API_VERSION = 'v1';
 
+/**
+ * The app authenticates with a bearer token only. Native networking would
+ * otherwise store the session cookie the server also sets and send it back;
+ * a stale cookie without an Origin header makes the auth server reject
+ * sign-in as cross-site ("Missing or null Origin").
+ */
+export const NO_COOKIES = 'omit' as const;
+
 export function mapMake(raw: Make): MakeOption {
   return { ...raw, id: String(raw.id), name: raw.name };
 }
@@ -131,6 +139,7 @@ export async function request<T>(
   try {
     response = await fetch(url, {
       ...init,
+      credentials: NO_COOKIES,
       headers: buildRequestHeaders(init),
       ...(controller ? { signal: controller.signal } : {}),
     });
@@ -253,7 +262,7 @@ export async function probeApiHealth(
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, { headers, credentials: NO_COOKIES });
     if (!response.ok) {
       return false;
     }
@@ -288,6 +297,7 @@ export async function exportVehiclePdf(
   try {
     response = await fetch(url, {
       method: 'POST',
+      credentials: NO_COOKIES,
       headers,
       body,
     });

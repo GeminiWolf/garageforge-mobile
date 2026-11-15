@@ -28,7 +28,15 @@ import type {
   VariantOption,
   YearOption,
 } from '../../types';
-import { colors, fontFamily, layout, spacing, typography } from '../../theme';
+import {
+  colors,
+  fontFamily,
+  layout,
+  radius,
+  spacing,
+  typography,
+} from '../../theme';
+import { Check, ChevronRight } from 'lucide-react-native';
 import { parseVehicleYear } from '../../utils/parseVehicleYear';
 
 type Props = NativeStackScreenProps<GarageStackParamList, 'AddVehicle'>;
@@ -311,6 +319,14 @@ export function AddVehicleScreen({ navigation }: Props) {
       make: selectedMake.name,
       model: selectedModel.name,
       trim: selectedVariant.trim,
+      // Engine name and code come from the catalogue; the engine number is
+      // unique to each car and is typed in later.
+      ...(selectedVariant.engine_name?.trim()
+        ? { engine: selectedVariant.engine_name.trim() }
+        : {}),
+      ...(selectedVariant.engine_code?.trim()
+        ? { engineCode: selectedVariant.engine_code.trim() }
+        : {}),
     });
     navigation.replace('CarDashboard', { vehicleId: id });
   };
@@ -347,14 +363,22 @@ export function AddVehicleScreen({ navigation }: Props) {
             ? 'Type in your car’s details.'
             : 'Choose your car in four quick steps: make, model, year and version.'}
         </Text>
-        {error && !manual ? <Text style={styles.error}>{error}</Text> : null}
+        {error && !manual ? (
+          <View style={styles.notice} accessibilityLiveRegion="polite">
+            <Text style={styles.noticeText}>{error}</Text>
+          </View>
+        ) : null}
         {validationError ? (
-          <Text style={styles.error}>{validationError}</Text>
+          <View style={styles.notice} accessibilityLiveRegion="polite">
+            <Text style={styles.noticeText}>{validationError}</Text>
+          </View>
         ) : null}
 
         {manual ? (
           <View>
             <Input
+              appearance="outlined"
+              size="lg"
               label="Year"
               value={manualYear}
               onChangeText={setManualYear}
@@ -362,25 +386,31 @@ export function AddVehicleScreen({ navigation }: Props) {
               containerStyle={styles.manualField}
             />
             <Input
+              appearance="outlined"
+              size="lg"
               label="Make"
               value={manualMake}
               onChangeText={setManualMake}
               containerStyle={styles.manualField}
             />
             <Input
+              appearance="outlined"
+              size="lg"
               label="Model"
               value={manualModel}
               onChangeText={setManualModel}
               containerStyle={styles.manualField}
             />
             <Input
+              appearance="outlined"
+              size="lg"
               label="Trim"
               value={manualTrim}
               onChangeText={setManualTrim}
               helper="Optional"
               containerStyle={styles.manualField}
             />
-            <Button label="Save to garage" onPress={saveManual} />
+            <Button label="Save to garage" size="lg" onPress={saveManual} />
             <Pressable
               onPress={() => {
                 setManual(false);
@@ -388,70 +418,86 @@ export function AddVehicleScreen({ navigation }: Props) {
               }}
               style={styles.modeLink}
             >
-              <Text style={styles.modeLinkText}>Back to catalogue</Text>
+              <Text style={styles.modeLinkText}>
+                Choose from the catalogue instead
+              </Text>
             </Pressable>
           </View>
         ) : (
           <View>
-            <FieldButton
-              label="Make"
-              value={selectedMake?.name || 'Choose make'}
-              hint={loadingMakes ? 'Loading makes…' : undefined}
-              loading={loadingMakes}
-              onPress={() => setOpenSheet('makes')}
-            />
-            <FieldButton
-              label="Model"
-              value={selectedModel?.name || 'Choose model'}
-              hint={
-                !selectedMake
-                  ? 'Pick a make first'
-                  : loadingModels
-                  ? 'Loading models…'
-                  : undefined
-              }
-              disabled={!selectedMake}
-              loading={loadingModels}
-              onPress={() => setOpenSheet('models')}
-            />
-            <FieldButton
-              label="Year"
-              value={
-                selectedModelYear
-                  ? String(selectedModelYear.year)
-                  : 'Choose year'
-              }
-              hint={
-                !selectedModel
-                  ? 'Pick a model first'
-                  : loadingYears
-                  ? 'Loading years…'
-                  : undefined
-              }
-              disabled={!selectedModel}
-              loading={loadingYears}
-              onPress={() => setOpenSheet('years')}
-            />
-            <FieldButton
-              label="Version"
-              value={
-                selectedVariant
-                  ? String(selectedVariant.name)
-                  : 'Choose version'
-              }
-              hint={
-                !selectedModelYear
-                  ? 'Pick a year first'
-                  : loadingVariants
-                  ? 'Loading variants…'
-                  : undefined
-              }
-              disabled={!selectedModelYear}
-              loading={loadingVariants}
-              onPress={() => setOpenSheet('variants')}
-            />
+            <View style={styles.panel}>
+              <FieldButton
+                step={1}
+                done={selectedMake != null}
+                label="Make"
+                value={selectedMake?.name || 'Choose make'}
+                hint={loadingMakes ? 'Loading makes…' : undefined}
+                loading={loadingMakes}
+                onPress={() => setOpenSheet('makes')}
+              />
+              <FieldButton
+                step={2}
+                done={selectedModel != null}
+                divider
+                label="Model"
+                value={selectedModel?.name || 'Choose model'}
+                hint={
+                  !selectedMake
+                    ? 'Pick a make first'
+                    : loadingModels
+                    ? 'Loading models…'
+                    : undefined
+                }
+                disabled={!selectedMake}
+                loading={loadingModels}
+                onPress={() => setOpenSheet('models')}
+              />
+              <FieldButton
+                step={3}
+                done={selectedModelYear != null}
+                divider
+                label="Year"
+                value={
+                  selectedModelYear
+                    ? String(selectedModelYear.year)
+                    : 'Choose year'
+                }
+                hint={
+                  !selectedModel
+                    ? 'Pick a model first'
+                    : loadingYears
+                    ? 'Loading years…'
+                    : undefined
+                }
+                disabled={!selectedModel}
+                loading={loadingYears}
+                onPress={() => setOpenSheet('years')}
+              />
+              <FieldButton
+                step={4}
+                done={selectedVariant != null}
+                divider
+                label="Version"
+                value={
+                  selectedVariant
+                    ? String(selectedVariant.name)
+                    : 'Choose version'
+                }
+                hint={
+                  !selectedModelYear
+                    ? 'Pick a year first'
+                    : loadingVariants
+                    ? 'Loading variants…'
+                    : undefined
+                }
+                disabled={!selectedModelYear}
+                loading={loadingVariants}
+                onPress={() => setOpenSheet('variants')}
+              />
+            </View>
             <Button
               label="Save to garage"
+              size="lg"
               onPress={saveCatalogue}
               disabled={!selectedVariant}
               style={styles.save}
@@ -489,6 +535,9 @@ export function AddVehicleScreen({ navigation }: Props) {
 }
 
 function FieldButton({
+  step,
+  done,
+  divider,
   label,
   value,
   hint,
@@ -496,6 +545,9 @@ function FieldButton({
   loading,
   onPress,
 }: {
+  step: number;
+  done: boolean;
+  divider?: boolean;
   label: string;
   value: string;
   hint?: string;
@@ -508,19 +560,38 @@ function FieldButton({
       disabled={disabled}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${label}, ${value}`}
+      accessibilityLabel={`Step ${step}, ${label}, ${value}`}
       accessibilityHint={hint}
       accessibilityState={{ disabled: !!disabled }}
-      style={[styles.field, disabled && styles.disabled]}
+      style={({ pressed }) => [
+        styles.field,
+        divider && styles.fieldDivider,
+        disabled && styles.disabled,
+        pressed && styles.pressed,
+      ]}
     >
-      <View style={styles.fieldHeader}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        {loading ? (
-          <ActivityIndicator color={colors.accent} size="small" />
-        ) : null}
+      <View style={[styles.stepDot, done && styles.stepDotDone]}>
+        {done ? (
+          <Check size={14} color={colors.bg} strokeWidth={3} />
+        ) : (
+          <Text style={styles.stepNumber}>{step}</Text>
+        )}
       </View>
-      <Text style={styles.fieldValue}>{value}</Text>
-      {hint && !loading ? <Text style={styles.fieldHint}>{hint}</Text> : null}
+      <View style={styles.fieldText}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text
+          style={[styles.fieldValue, !done && !disabled && styles.fieldPrompt]}
+          numberOfLines={2}
+        >
+          {value}
+        </Text>
+        {hint && !loading ? <Text style={styles.fieldHint}>{hint}</Text> : null}
+      </View>
+      {loading ? (
+        <ActivityIndicator color={colors.accent} size="small" />
+      ) : (
+        <ChevronRight size={20} color={colors.textDim} />
+      )}
     </Pressable>
   );
 }
@@ -537,55 +608,85 @@ const styles = StyleSheet.create({
   intro: {
     ...typography.body,
     color: colors.textMuted,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  error: {
-    ...typography.caption,
-    color: colors.danger,
-    marginBottom: spacing.sm,
+  notice: {
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.warningSoft,
+    marginBottom: spacing.md,
+  },
+  noticeText: {
+    ...typography.body,
+    color: colors.warningText,
+  },
+  panel: {
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   field: {
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSubtle,
-  },
-  disabled: {
-    opacity: 0.45,
-  },
-  fieldHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    gap: spacing.md,
+    minHeight: 72,
+    paddingVertical: spacing.md,
   },
+  fieldDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  pressed: { opacity: 0.72 },
+  stepDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotDone: { backgroundColor: colors.accent, borderColor: colors.accent },
+  stepNumber: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  fieldText: { flex: 1, minWidth: 0, gap: 2 },
   fieldLabel: {
-    ...typography.label,
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
     color: colors.textMuted,
   },
   fieldValue: {
     ...typography.subtitle,
     color: colors.text,
   },
+  fieldPrompt: { color: colors.accent },
   fieldHint: {
     ...typography.caption,
     color: colors.textDim,
-    marginTop: 4,
   },
   save: {
     marginTop: spacing.lg,
   },
   manualField: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   modeLink: {
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   modeLinkText: {
     ...typography.body,
-    color: colors.text,
-    fontFamily: fontFamily.medium,
+    color: colors.accent,
+    fontFamily: fontFamily.semibold,
   },
 });
 

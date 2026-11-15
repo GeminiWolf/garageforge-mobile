@@ -57,6 +57,10 @@ const serverVehicle = (
   model: 'M3',
   trim: 'F80',
   engine: null,
+  engineCode: null,
+  engineNumber: null,
+  currentMileage: null,
+  mileageUpdatedAt: null,
   clientUpdatedAt: T0,
   deletedAt: null,
   ...extra,
@@ -100,6 +104,8 @@ function snapshot(extra: Partial<SyncSnapshot> = {}): SyncSnapshot {
   return {
     vehicles: [],
     trackedParts: [],
+    notes: [],
+    timeEntries: [],
     settings,
     sync: { pendingDeletions: [] },
     ...extra,
@@ -166,7 +172,7 @@ describe('applySyncResponse', () => {
     const later = '2026-11-10T13:00:00.000Z'; // other device's clock is ahead
     const result = applySyncResponse(
       snapshot(),
-      { vehicles: [], parts: [] },
+      { vehicles: [], parts: [], notes: [], timeEntries: [] },
       response({
         vehicles: [serverVehicle(V1, { clientUpdatedAt: later })],
         parts: [serverPart(P1, V1, { actualCost: 99, notes: 'From web' })],
@@ -195,7 +201,7 @@ describe('applySyncResponse', () => {
         vehicles: [vehicle(V1, T0), vehicle(V2, T0)],
         trackedParts: [part(P1, V1, T0), part(P2, V2, T0)],
       }),
-      { vehicles: [], parts: [] },
+      { vehicles: [], parts: [], notes: [], timeEntries: [] },
       response({ vehicles: [serverVehicle(V1, { deletedAt: T0 })] }),
       STARTED,
       NOW,
@@ -207,7 +213,7 @@ describe('applySyncResponse', () => {
   it('keeps local edits made while the request was in flight', () => {
     const result = applySyncResponse(
       snapshot({ vehicles: [vehicle(V1, LATER, 'Edited on phone')] }),
-      { vehicles: [], parts: [] },
+      { vehicles: [], parts: [], notes: [], timeEntries: [] },
       response({ vehicles: [serverVehicle(V1, { make: 'From server' })] }),
       STARTED,
       NOW,
@@ -220,7 +226,7 @@ describe('applySyncResponse', () => {
     const fromServer = { ...serverSettings, monthlyBudget: 4000 };
     const applied = applySyncResponse(
       snapshot(),
-      { vehicles: [], parts: [] },
+      { vehicles: [], parts: [], notes: [], timeEntries: [] },
       response({ settings: fromServer }),
       STARTED,
       NOW,
@@ -232,7 +238,7 @@ describe('applySyncResponse', () => {
         settings: { ...settings, monthlyBudget: 1500 },
         sync: { pendingDeletions: [], settingsUpdatedAt: LATER },
       }),
-      { vehicles: [], parts: [] },
+      { vehicles: [], parts: [], notes: [], timeEntries: [] },
       response({ settings: fromServer }),
       STARTED,
       NOW,
@@ -253,7 +259,12 @@ describe('applySyncResponse', () => {
     };
     const result = applySyncResponse(
       snapshot({ sync: { pendingDeletions: [sent, queuedLater] } }),
-      { vehicles: [], parts: [{ ...sent.record, deletedAt: T0 } as never] },
+      {
+        vehicles: [],
+        parts: [{ ...sent.record, deletedAt: T0 } as never],
+        notes: [],
+        timeEntries: [],
+      },
       response(),
       STARTED,
       NOW,
@@ -267,7 +278,7 @@ describe('applySyncResponse', () => {
         vehicles: [vehicle(V1, T0)],
         trackedParts: [part(P1, V1, T0)],
       }),
-      { vehicles: [], parts: [] },
+      { vehicles: [], parts: [], notes: [], timeEntries: [] },
       response({
         rejected: [{ type: 'vehicle', id: V1, reason: 'id_conflict' }],
       }),
@@ -279,5 +290,136 @@ describe('applySyncResponse', () => {
     expect(moved.updatedAt).toBe(NOW);
     expect(result.trackedParts[0].vehicleId).toBe(moved.id);
     expect(hasPendingChanges(result)).toBe(true);
+  });
+});
+
+describe('vehicle details, notes and time', () => {
+  const N1 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const E1 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const sent = { vehicles: [], parts: [], notes: [], timeEntries: [] };
+
+  it('sends phone-editable vehicle fields, clearing empty ones', () => {
+    const request = buildSyncRequest(
+      snapshot({
+        vehicles: [
+          {
+            ...vehicle(V1, STARTED),
+            engineCode: '1GD-FTV',
+            mileage: 84320,
+            mileageUpdatedAt: T0,
+          },
+        ],
+        sync: { lastPushedAt: PUSHED, pendingDeletions: [] },
+      }),
+    );
+    expect(request.vehicles[0]).toMatchObject({
+      engineCode: '1GD-FTV',
+      engineNumber: null,
+      currentMileage: 84320,
+      mileageUpdatedAt: T0,
+    });
+  });
+
+  it('pushes new notes and time entries and queued deletions', () => {
+    const request = buildSyncRequest(
+      snapshot({
+        vehicles: [vehicle(V1, T0)],
+        notes: [
+          {
+            id: N1,
+            vehicleId: V1,
+            kind: 'customer',
+            body: 'Knocking',
+            writtenAt: STARTED,
+            updatedAt: STARTED,
+          },
+        ],
+        sync: {
+          lastPushedAt: PUSHED,
+          pendingDeletions: [
+            {
+              type: 'timeEntry',
+              record: {
+                id: E1,
+                vehicleId: V1,
+                minutes: 30,
+                workedOn: '2026-11-10',
+                updatedAt: T0,
+              },
+              deletedAt: STARTED,
+            },
+          ],
+        },
+      }),
+    );
+    expect(request.notes).toEqual([
+      expect.objectContaining({ id: N1, kind: 'customer', body: 'Knocking' }),
+    ]);
+    expect(request.timeEntries).toEqual([
+      expect.objectContaining({ id: E1, deletedAt: STARTED, note: null }),
+    ]);
+  });
+
+  it('pulls notes and time entries and drops them with their vehicle', () => {
+    const pulled = applySyncResponse(
+      snapshot({ vehicles: [vehicle(V1, T0)] }),
+      sent,
+      response({
+        vehicles: [
+          serverVehicle(V1, { engineNumber: 'ENG-1', currentMileage: 1000 }),
+        ],
+        notes: [
+          {
+            id: N1,
+            vehicleId: V1,
+            kind: 'personal',
+            body: 'Check CV joint',
+            writtenAt: T0,
+            clientUpdatedAt: T0,
+            deletedAt: null,
+          },
+        ],
+        timeEntries: [
+          {
+            id: E1,
+            vehicleId: V1,
+            minutes: 90,
+            workedOn: '2026-11-10',
+            note: null,
+            clientUpdatedAt: T0,
+            deletedAt: null,
+          },
+        ],
+      }),
+      STARTED,
+      NOW,
+    );
+    expect(pulled.vehicles[0]).toMatchObject({
+      engineNumber: 'ENG-1',
+      mileage: 1000,
+    });
+    expect(pulled.notes).toHaveLength(1);
+    expect(pulled.timeEntries[0]).toMatchObject({ minutes: 90 });
+
+    const deleted = applySyncResponse(
+      pulled,
+      sent,
+      response({ vehicles: [serverVehicle(V1, { deletedAt: NOW })] }),
+      STARTED,
+      NOW,
+    );
+    expect(deleted.notes).toEqual([]);
+    expect(deleted.timeEntries).toEqual([]);
+  });
+
+  it('copes with a server that does not send notes yet', () => {
+    const result = applySyncResponse(
+      snapshot({ vehicles: [vehicle(V1, T0)] }),
+      sent,
+      { ...response(), notes: undefined, timeEntries: undefined },
+      STARTED,
+      NOW,
+    );
+    expect(result.notes).toEqual([]);
   });
 });

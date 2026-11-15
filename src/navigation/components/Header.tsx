@@ -1,22 +1,10 @@
 import React from 'react';
 import { BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
-import { AppHeader, HeaderAction } from './AppHeader';
+import { AppHeader } from './AppHeader';
 
 type HeaderProps = BottomTabHeaderProps;
 
-export default function Header({ route, navigation, options }: HeaderProps) {
-  const addVehicle = () => {
-    navigation.getParent()?.navigate('AddVehicle');
-  };
-
-  return (
-    <AppHeader
-      title={options.title ?? route.name}
-      right={
-        route.name === 'GarageTab' ? (
-          <HeaderAction label="Add vehicle" onPress={addVehicle} />
-        ) : undefined
-      }
-    />
-  );
+/** Tab screens get one large page title; their main action is a floating button. */
+export default function Header({ route, options }: HeaderProps) {
+  return <AppHeader title={options.title ?? route.name} large />;
 }

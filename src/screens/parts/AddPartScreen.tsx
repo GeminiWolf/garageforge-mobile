@@ -12,7 +12,7 @@ import {
 import { useHeaderHeight } from '@react-navigation/elements';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
-import { Chip } from '../../components/common/Chip';
+import { SegmentedControl } from '../../components/common/SegmentedControl';
 import { Input } from '../../components/common/Input';
 import { NestedCategorySheet } from '../../components/common/NestedCategorySheet';
 import { SkeletonList } from '../../components/common/Skeleton';
@@ -28,7 +28,9 @@ import type {
 import { formatCategoryPath } from '../../utils/formatCategoryPath';
 import { getCurrencySymbol } from '../../utils/formatMoney';
 import { getCatalogPartDefaults } from '../../utils/getCatalogPartDefaults';
-import { colors, layout, spacing } from '../../theme';
+import { colors, fontFamily, layout, radius, spacing } from '../../theme';
+import { PRIORITY_LABELS } from '../../utils/partStatus';
+import { Check, ChevronRight, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<GarageStackParamList, 'AddPart'>;
@@ -236,27 +238,43 @@ export function AddPartScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             ) : (
-              <Text tone="muted">
-                Start from the catalogue. If the part isn’t listed, enter it
-                yourself.
+              <Text size="md" tone="muted">
+                Pick a category, then the part. Not listed? Enter it yourself.
               </Text>
             )}
 
             {!manual ? (
               <Pressable
                 accessibilityRole="button"
-                style={styles.categoryField}
+                accessibilityLabel={`Category: ${categoryLabel}. Change`}
+                style={({ pressed }) => [
+                  styles.panel,
+                  styles.pickerRow,
+                  pressed && styles.pressed,
+                ]}
                 onPress={() => setCategorySheetOpen(true)}
               >
-                <Text variant="label" tone="muted">
-                  Category
-                </Text>
-                <Text variant="subtitle">{categoryLabel}</Text>
+                <View style={styles.pickerText}>
+                  <Text size="md" tone="muted">
+                    Category
+                  </Text>
+                  <Text
+                    weight="medium"
+                    tone={selectedCategory ? 'default' : 'accent'}
+                    numberOfLines={2}
+                  >
+                    {categoryLabel}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={colors.textDim} />
               </Pressable>
             ) : null}
 
             {selectedCategory && !manual && selectedCatalog == null ? (
               <Input
+                appearance="outlined"
+                size="lg"
+                leftSection={<Search size={18} color={colors.textMuted} />}
                 placeholder="Filter by name"
                 value={query}
                 onChangeText={setQuery}
@@ -266,29 +284,53 @@ export function AddPartScreen({ navigation, route }: Props) {
 
             {!manual && loading ? <SkeletonList count={5} /> : null}
 
-            {!manual && selectedCategory && !loading && selectedCatalog == null
-              ? results.map(part => (
+            {!manual &&
+            selectedCategory &&
+            !loading &&
+            selectedCatalog == null &&
+            results.length > 0 ? (
+              <View style={[styles.panel, styles.resultsPanel]}>
+                {results.map((part, index) => (
                   <Pressable
                     key={part.id}
-                    style={styles.result}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.result,
+                      index > 0 && styles.resultDivider,
+                      pressed && styles.pressed,
+                    ]}
                     onPress={() => setSelectedCatalog(part)}
                   >
-                    <Text tone="muted">{part.name}</Text>
+                    <Text style={styles.flex}>{part.name}</Text>
+                    <ChevronRight size={18} color={colors.textDim} />
                   </Pressable>
-                ))
-              : null}
+                ))}
+              </View>
+            ) : null}
 
             {!manual && selectedCatalog ? (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Selected ${selectedCatalog.name}. Choose a different part`}
                 onPress={() => setSelectedCatalog(null)}
-                style={styles.result}
+                style={({ pressed }) => [
+                  styles.panel,
+                  styles.pickerRow,
+                  styles.selected,
+                  pressed && styles.pressed,
+                ]}
               >
-                <Text variant="label" tone="muted">
-                  Selected
-                </Text>
-                <Text variant="subtitle">{selectedCatalog.name}</Text>
-                <Text size="sm" tone="muted">
-                  Choose a different part
+                <View style={styles.selectedIcon}>
+                  <Check size={16} color={colors.bg} strokeWidth={3} />
+                </View>
+                <View style={styles.pickerText}>
+                  <Text weight="medium">{selectedCatalog.name}</Text>
+                  <Text size="md" tone="muted">
+                    From the catalogue
+                  </Text>
+                </View>
+                <Text size="md" weight="semibold" tone="accent">
+                  Change
                 </Text>
               </Pressable>
             ) : null}
@@ -312,7 +354,9 @@ export function AddPartScreen({ navigation, route }: Props) {
                 }}
                 style={styles.manualLink}
               >
-                <Text weight="medium">Can’t find it? Enter it manually</Text>
+                <Text weight="semibold" tone="accent">
+                  Can’t find it? Enter it yourself
+                </Text>
               </Pressable>
             ) : null}
 
@@ -320,6 +364,7 @@ export function AddPartScreen({ navigation, route }: Props) {
               <View style={styles.details}>
                 <Input
                   appearance="outlined"
+                  size="lg"
                   label="Part name"
                   testID="part-name"
                   inputRef={inputRefs.name}
@@ -339,6 +384,7 @@ export function AddPartScreen({ navigation, route }: Props) {
                 />
                 <Input
                   appearance="outlined"
+                  size="lg"
                   label="Part number (optional)"
                   testID="part-number"
                   inputRef={inputRefs.number}
@@ -359,6 +405,7 @@ export function AddPartScreen({ navigation, route }: Props) {
                 />
                 <Input
                   appearance="outlined"
+                  size="lg"
                   label="Estimated cost (optional)"
                   testID="part-cost"
                   inputRef={inputRefs.cost}
@@ -379,6 +426,7 @@ export function AddPartScreen({ navigation, route }: Props) {
                 />
                 <Input
                   appearance="outlined"
+                  size="lg"
                   label="Notes (optional)"
                   testID="part-notes"
                   inputRef={inputRefs.notes}
@@ -397,18 +445,23 @@ export function AddPartScreen({ navigation, route }: Props) {
                   onChangeText={setNotes}
                   containerStyle={styles.field}
                 />
-                <Text variant="label" tone="muted">
-                  Priority
-                </Text>
-                <View style={styles.chips}>
-                  {PRIORITIES.map(p => (
-                    <Chip
-                      key={p}
-                      label={p.charAt(0).toUpperCase() + p.slice(1)}
-                      selected={priority === p}
-                      onPress={() => setPriority(p)}
-                    />
-                  ))}
+                <View style={styles.prioritySection}>
+                  <Text style={styles.sectionTitle}>PRIORITY</Text>
+                  <SegmentedControl
+                    accessibilityLabel="Priority"
+                    value={priority}
+                    onChange={setPriority}
+                    segments={PRIORITIES.map(p => ({
+                      value: p,
+                      label: PRIORITY_LABELS[p],
+                      ...(p === 'urgent'
+                        ? {
+                            selectedBg: colors.dangerSoft,
+                            selectedFg: colors.dangerText,
+                          }
+                        : {}),
+                    }))}
+                  />
                 </View>
                 {manual ? (
                   <Pressable
@@ -416,8 +469,8 @@ export function AddPartScreen({ navigation, route }: Props) {
                     onPress={() => setManual(false)}
                     style={styles.manualLink}
                   >
-                    <Text variant="caption" tone="accent">
-                      Choose from catalogue instead
+                    <Text weight="semibold" tone="accent">
+                      Choose from the catalogue instead
                     </Text>
                   </Pressable>
                 ) : null}
@@ -427,7 +480,7 @@ export function AddPartScreen({ navigation, route }: Props) {
         </View>
         {showDetails ? (
           <View style={[styles.footer, { paddingBottom: bottom + spacing.md }]}>
-            <Button label="Save to this build" onPress={save} />
+            <Button label="Save to this car" size="lg" onPress={save} />
           </View>
         ) : null}
       </KeyboardAvoidingView>
@@ -451,7 +504,7 @@ export function AddPartScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   manualIntro: { gap: spacing.xs },
-  notesInput: { minHeight: 76, textAlignVertical: 'top' },
+  notesInput: { minHeight: 88, textAlignVertical: 'top' },
   root: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -459,21 +512,48 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  pressed: { opacity: 0.72 },
   content: {
     paddingHorizontal: layout.gutter,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  categoryField: {
-    paddingVertical: spacing.md,
-    borderBottomWidth: layout.hairline,
-    borderBottomColor: colors.borderSubtle,
-    gap: 4,
+  panel: {
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
-  chips: {
+  pickerRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 64,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  pickerText: { flex: 1, minWidth: 0, gap: 2 },
+  selected: { borderColor: colors.accent },
+  selectedIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultsPanel: { paddingHorizontal: spacing.lg },
+  result: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 52,
+    paddingVertical: spacing.md,
+  },
+  resultDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
   },
   emptyResults: {
     paddingVertical: spacing.sm,
@@ -486,25 +566,27 @@ const styles = StyleSheet.create({
   error: {
     flex: 1,
   },
-  result: {
-    paddingVertical: spacing.md,
-    borderBottomWidth: layout.hairline,
-    borderBottomColor: colors.borderSubtle,
-  },
   field: {
     marginBottom: 0,
   },
   details: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     gap: spacing.lg,
   },
+  prioritySection: { gap: spacing.sm },
+  sectionTitle: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    color: colors.textMuted,
+    paddingHorizontal: 4,
+  },
   manualLink: {
-    paddingVertical: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   footer: {
     paddingHorizontal: layout.gutter,
-    paddingVertical: spacing.md,
-    borderTopWidth: layout.hairline,
-    borderTopColor: colors.borderSubtle,
+    paddingTop: spacing.md,
   },
 });

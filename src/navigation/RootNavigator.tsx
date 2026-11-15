@@ -1,9 +1,9 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Car, Settings as SettingsIcon, Wallet } from 'lucide-react-native';
 
 import type { GarageStackParamList, RootTabParamList } from './types';
@@ -25,10 +25,11 @@ import {
 import { colors, fontFamily } from '../theme';
 import Header from './components/Header';
 import { StackHeader } from './components/AppHeader';
-import { AddPartHeaderRight } from './components/AddPartHeaderRight';
 import { AddPartTitle } from './components/AddPartTitle';
 import { PartHeaderTitle } from './components/PartHeaderTitle';
 import { VehicleHeaderTitle } from './components/VehicleHeaderTitle';
+import { VehicleOptionsHeaderRight } from './components/VehicleOptionsHeaderRight';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAutoSync } from '../hooks/useAutoSync';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -41,7 +42,10 @@ function vehicleHeaderOptions(
   return {
     headerTitle: () => <VehicleHeaderTitle vehicleId={vehicleId} />,
     headerRight: () => (
-      <AddPartHeaderRight navigation={navigation} vehicleId={vehicleId} />
+      <VehicleOptionsHeaderRight
+        navigation={navigation}
+        vehicleId={vehicleId}
+      />
     ),
   };
 }
@@ -64,17 +68,41 @@ const renderTabHeader = (props: React.ComponentProps<typeof Header>) => (
 
 type TabIconProps = { color: string; size: number; focused?: boolean };
 
-function GarageTabIcon({ color, size }: TabIconProps) {
-  return <Car color={color} size={size} />;
+/** Android-style tab icon: the active tab sits in a soft green pill. */
+function TabIcon({
+  Icon,
+  focused,
+  color,
+}: TabIconProps & { Icon: typeof Car }) {
+  return (
+    <View style={[tabStyles.pill, focused && tabStyles.pillActive]}>
+      <Icon color={focused ? colors.accent : color} size={22} />
+    </View>
+  );
 }
 
-function BudgetTabIcon({ color, size }: TabIconProps) {
-  return <Wallet color={color} size={size} />;
+function GarageTabIcon(props: TabIconProps) {
+  return <TabIcon {...props} Icon={Car} />;
 }
 
-function SettingsTabIcon({ color, size }: TabIconProps) {
-  return <SettingsIcon color={color} size={size} />;
+function BudgetTabIcon(props: TabIconProps) {
+  return <TabIcon {...props} Icon={Wallet} />;
 }
+
+function SettingsTabIcon(props: TabIconProps) {
+  return <TabIcon {...props} Icon={SettingsIcon} />;
+}
+
+const tabStyles = StyleSheet.create({
+  pill: {
+    width: 64,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillActive: { backgroundColor: colors.accentContainer },
+});
 
 const navTheme = {
   ...DefaultTheme,
@@ -89,20 +117,25 @@ const navTheme = {
 };
 
 function MainTabs() {
+  const { bottom } = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
         header: renderTabHeader,
         tabBarStyle: {
-          backgroundColor: colors.bg,
+          backgroundColor: colors.surfaceSunken,
           borderTopColor: colors.borderSubtle,
           borderTopWidth: StyleSheet.hairlineWidth,
+          height: 72 + bottom,
+          paddingTop: 10,
+          paddingBottom: bottom + 8,
         },
         tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: colors.textDim,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
-          fontFamily: fontFamily.medium,
-          fontSize: 11,
+          fontFamily: fontFamily.semibold,
+          fontSize: 12,
+          marginTop: 4,
         },
       }}
     >

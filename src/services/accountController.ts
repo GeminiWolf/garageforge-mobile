@@ -110,6 +110,8 @@ async function startSession(token: string): Promise<void> {
     state.applySyncResult({
       vehicles: state.vehicles,
       trackedParts: state.trackedParts,
+      notes: state.notes,
+      timeEntries: state.timeEntries,
       settings: state.settings,
       sync: {
         pendingDeletions: [],
@@ -194,6 +196,8 @@ async function endExpiredSession(): Promise<void> {
   state.applySyncResult({
     vehicles: state.vehicles,
     trackedParts: state.trackedParts,
+    notes: state.notes,
+    timeEntries: state.timeEntries,
     settings: state.settings,
     sync: { pendingDeletions: [] },
   });

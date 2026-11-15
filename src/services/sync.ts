@@ -2,23 +2,31 @@ import type {
   AppSettings,
   PendingDeletion,
   SyncState,
+  TimeEntry,
   TrackedPart,
   Vehicle,
+  VehicleNote,
 } from '../types/garage';
 import { createId } from '../utils/createId';
 import type {
+  NoteChange,
   PartChange,
+  ServerNote,
   ServerPart,
   ServerSettings,
+  ServerTimeEntry,
   ServerVehicle,
   SyncRequest,
   SyncResponse,
+  TimeEntryChange,
   VehicleChange,
 } from './syncTypes';
 
 export type SyncSnapshot = {
   vehicles: Vehicle[];
   trackedParts: TrackedPart[];
+  notes: VehicleNote[];
+  timeEntries: TimeEntry[];
   settings: AppSettings;
   sync: SyncState;
 };
@@ -36,12 +44,19 @@ function toVehicleChange(vehicle: Vehicle): VehicleChange {
     make: vehicle.make,
     model: vehicle.model,
     trim: vehicle.trim,
+    // Editable on the phone, so absent values are sent as null to clear them.
+    engineNumber: vehicle.engineNumber ?? null,
+    currentMileage: vehicle.mileage ?? null,
+    mileageUpdatedAt: vehicle.mileageUpdatedAt ?? null,
     updatedAt: vehicle.updatedAt,
   };
   // Omitted (not null) so a value added on the website is not wiped; the
-  // phone cannot edit a vehicle's engine after adding it.
+  // phone only sets the engine from the catalogue when adding a vehicle.
   if (vehicle.engine) {
     change.engine = vehicle.engine;
+  }
+  if (vehicle.engineCode) {
+    change.engineCode = vehicle.engineCode;
   }
   return change;
 }
@@ -68,13 +83,47 @@ function toPartChange(part: TrackedPart): PartChange {
   };
 }
 
-function deletionChange(
-  deletion: PendingDeletion,
-): { vehicle: VehicleChange } | { part: PartChange } {
+function toNoteChange(note: VehicleNote): NoteChange {
+  return {
+    id: note.id,
+    vehicleId: note.vehicleId,
+    kind: note.kind,
+    body: note.body,
+    writtenAt: note.writtenAt,
+    updatedAt: note.updatedAt,
+  };
+}
+
+function toTimeEntryChange(entry: TimeEntry): TimeEntryChange {
+  return {
+    id: entry.id,
+    vehicleId: entry.vehicleId,
+    minutes: entry.minutes,
+    workedOn: entry.workedOn,
+    note: entry.note ?? null,
+    updatedAt: entry.updatedAt,
+  };
+}
+
+function addDeletion(request: SyncRequest, deletion: PendingDeletion): void {
   const meta = { updatedAt: deletion.deletedAt, deletedAt: deletion.deletedAt };
-  return deletion.type === 'vehicle'
-    ? { vehicle: { ...toVehicleChange(deletion.record), ...meta } }
-    : { part: { ...toPartChange(deletion.record), ...meta } };
+  switch (deletion.type) {
+    case 'vehicle':
+      request.vehicles.push({ ...toVehicleChange(deletion.record), ...meta });
+      break;
+    case 'part':
+      request.parts.push({ ...toPartChange(deletion.record), ...meta });
+      break;
+    case 'note':
+      request.notes.push({ ...toNoteChange(deletion.record), ...meta });
+      break;
+    case 'timeEntry':
+      request.timeEntries.push({
+        ...toTimeEntryChange(deletion.record),
+        ...meta,
+      });
+      break;
+  }
 }
 
 function pickSyncedSettings(settings: AppSettings): ServerSettings {
@@ -91,10 +140,14 @@ function pickSyncedSettings(settings: AppSettings): ServerSettings {
 /** True when something changed on the device since the last push. */
 export function hasPendingChanges(snapshot: SyncSnapshot): boolean {
   const { lastPushedAt, pendingDeletions, settingsUpdatedAt } = snapshot.sync;
+  const changed = (item: { updatedAt: string }) =>
+    isAfter(item.updatedAt, lastPushedAt);
   return (
     pendingDeletions.length > 0 ||
-    snapshot.vehicles.some(item => isAfter(item.updatedAt, lastPushedAt)) ||
-    snapshot.trackedParts.some(item => isAfter(item.updatedAt, lastPushedAt)) ||
+    snapshot.vehicles.some(changed) ||
+    snapshot.trackedParts.some(changed) ||
+    snapshot.notes.some(changed) ||
+    snapshot.timeEntries.some(changed) ||
     (settingsUpdatedAt !== undefined &&
       isAfter(settingsUpdatedAt, lastPushedAt))
   );
@@ -103,21 +156,16 @@ export function hasPendingChanges(snapshot: SyncSnapshot): boolean {
 /** Everything changed on the device since the last successful push. */
 export function buildSyncRequest(snapshot: SyncSnapshot): SyncRequest {
   const { sync } = snapshot;
+  const changed = (item: { updatedAt: string }) =>
+    isAfter(item.updatedAt, sync.lastPushedAt);
   const request: SyncRequest = {
-    vehicles: snapshot.vehicles
-      .filter(item => isAfter(item.updatedAt, sync.lastPushedAt))
-      .map(toVehicleChange),
-    parts: snapshot.trackedParts
-      .filter(item => isAfter(item.updatedAt, sync.lastPushedAt))
-      .map(toPartChange),
+    vehicles: snapshot.vehicles.filter(changed).map(toVehicleChange),
+    parts: snapshot.trackedParts.filter(changed).map(toPartChange),
+    notes: snapshot.notes.filter(changed).map(toNoteChange),
+    timeEntries: snapshot.timeEntries.filter(changed).map(toTimeEntryChange),
   };
   for (const deletion of sync.pendingDeletions) {
-    const change = deletionChange(deletion);
-    if ('vehicle' in change) {
-      request.vehicles.push(change.vehicle);
-    } else {
-      request.parts.push(change.part);
-    }
+    addDeletion(request, deletion);
   }
   if (sync.cursor) {
     request.since = sync.cursor;
@@ -143,8 +191,12 @@ function fromServerVehicle(row: ServerVehicle, updatedAt: string): Vehicle {
     trim: row.trim,
     updatedAt,
   };
-  if (row.engine) {
-    vehicle.engine = row.engine;
+  if (row.engine) vehicle.engine = row.engine;
+  if (row.engineCode) vehicle.engineCode = row.engineCode;
+  if (row.engineNumber) vehicle.engineNumber = row.engineNumber;
+  if (row.currentMileage != null) {
+    vehicle.mileage = row.currentMileage;
+    if (row.mileageUpdatedAt) vehicle.mileageUpdatedAt = row.mileageUpdatedAt;
   }
   return vehicle;
 }
@@ -171,6 +223,80 @@ function fromServerPart(row: ServerPart, updatedAt: string): TrackedPart {
   return part;
 }
 
+function fromServerNote(row: ServerNote, updatedAt: string): VehicleNote {
+  return {
+    id: row.id,
+    vehicleId: row.vehicleId,
+    kind: row.kind,
+    body: row.body,
+    writtenAt: row.writtenAt,
+    updatedAt,
+  };
+}
+
+function fromServerTimeEntry(
+  row: ServerTimeEntry,
+  updatedAt: string,
+): TimeEntry {
+  const entry: TimeEntry = {
+    id: row.id,
+    vehicleId: row.vehicleId,
+    minutes: row.minutes,
+    workedOn: row.workedOn,
+    updatedAt,
+  };
+  if (row.note) entry.note = row.note;
+  return entry;
+}
+
+type ChildRecord = { id: string; vehicleId: string; updatedAt: string };
+type ChildRow = {
+  id: string;
+  vehicleId: string;
+  clientUpdatedAt: string;
+  deletedAt: string | null;
+};
+
+/**
+ * Applies server rows for records that belong to a vehicle. Local edits made
+ * after the request started win; rows for missing vehicles are dropped.
+ */
+function mergeChildren<T extends ChildRecord, R extends ChildRow>(
+  records: Map<string, T>,
+  rows: R[],
+  vehicles: Map<string, Vehicle>,
+  startedAt: string,
+  fromServer: (row: R, updatedAt: string) => T,
+): void {
+  for (const row of rows) {
+    const local = records.get(row.id);
+    if (local && isAfter(local.updatedAt, startedAt)) {
+      continue;
+    }
+    if (row.deletedAt || !vehicles.has(row.vehicleId)) {
+      records.delete(row.id);
+    } else {
+      records.set(
+        row.id,
+        fromServer(row, minTime(row.clientUpdatedAt, startedAt)),
+      );
+    }
+  }
+}
+
+/** Gives a record the server refused a fresh id so it uploads as new. */
+function reissueId<T extends { id: string; updatedAt: string }>(
+  records: Map<string, T>,
+  id: string,
+  now: string,
+): void {
+  const record = records.get(id);
+  if (!record) return;
+  const newId = createId();
+  records.delete(id);
+  records.set(newId, { ...record, id: newId, updatedAt: now });
+}
+
 /**
  * Merges a sync response into the device state.
  *
@@ -192,6 +318,9 @@ export function applySyncResponse(
 
   const vehicles = new Map(current.vehicles.map(item => [item.id, item]));
   const parts = new Map(current.trackedParts.map(item => [item.id, item]));
+  const notes = new Map(current.notes.map(item => [item.id, item]));
+  const timeEntries = new Map(current.timeEntries.map(item => [item.id, item]));
+  const children = [parts, notes, timeEntries] as Map<string, ChildRecord>[];
 
   for (const row of response.vehicles) {
     const local = vehicles.get(row.id);
@@ -200,8 +329,10 @@ export function applySyncResponse(
     }
     if (row.deletedAt) {
       vehicles.delete(row.id);
-      for (const part of parts.values()) {
-        if (part.vehicleId === row.id) parts.delete(part.id);
+      for (const records of children) {
+        for (const record of records.values()) {
+          if (record.vehicleId === row.id) records.delete(record.id);
+        }
       }
     } else {
       vehicles.set(
@@ -211,41 +342,55 @@ export function applySyncResponse(
     }
   }
 
-  for (const row of response.parts) {
-    const local = parts.get(row.id);
-    if (local && editedSinceStart(local)) {
-      continue;
-    }
-    if (row.deletedAt || !vehicles.has(row.vehicleId)) {
-      parts.delete(row.id);
-    } else {
-      parts.set(
-        row.id,
-        fromServerPart(row, minTime(row.clientUpdatedAt, startedAt)),
-      );
-    }
-  }
+  mergeChildren(parts, response.parts, vehicles, startedAt, fromServerPart);
+  mergeChildren(
+    notes,
+    response.notes ?? [],
+    vehicles,
+    startedAt,
+    fromServerNote,
+  );
+  mergeChildren(
+    timeEntries,
+    response.timeEntries ?? [],
+    vehicles,
+    startedAt,
+    fromServerTimeEntry,
+  );
 
   // Records the server refused: give them a fresh id so they upload as new
   // records next time instead of failing forever.
   for (const rejection of response.rejected) {
     if (rejection.reason !== 'id_conflict') continue;
-    const newId = createId();
-    if (rejection.type === 'vehicle') {
-      const vehicle = vehicles.get(rejection.id);
-      if (!vehicle) continue;
-      vehicles.delete(rejection.id);
-      vehicles.set(newId, { ...vehicle, id: newId, updatedAt: now });
-      for (const part of parts.values()) {
-        if (part.vehicleId === rejection.id) {
-          parts.set(part.id, { ...part, vehicleId: newId, updatedAt: now });
+    switch (rejection.type) {
+      case 'vehicle': {
+        const vehicle = vehicles.get(rejection.id);
+        if (!vehicle) break;
+        const newId = createId();
+        vehicles.delete(rejection.id);
+        vehicles.set(newId, { ...vehicle, id: newId, updatedAt: now });
+        for (const records of children) {
+          for (const record of records.values()) {
+            if (record.vehicleId === rejection.id) {
+              records.set(record.id, {
+                ...record,
+                vehicleId: newId,
+                updatedAt: now,
+              });
+            }
+          }
         }
+        break;
       }
-    } else {
-      const part = parts.get(rejection.id);
-      if (!part) continue;
-      parts.delete(rejection.id);
-      parts.set(newId, { ...part, id: newId, updatedAt: now });
+      case 'part':
+        reissueId(parts, rejection.id, now);
+        break;
+      case 'note':
+        reissueId(notes, rejection.id, now);
+        break;
+      case 'time_entry':
+        reissueId(timeEntries, rejection.id, now);
+        break;
     }
   }
 
@@ -257,7 +402,7 @@ export function applySyncResponse(
     : { ...current.settings, ...response.settings };
 
   const sentDeletions = new Set(
-    [...sent.vehicles, ...sent.parts]
+    [...sent.vehicles, ...sent.parts, ...sent.notes, ...sent.timeEntries]
       .filter(change => change.deletedAt)
       .map(change => change.id),
   );
@@ -265,6 +410,8 @@ export function applySyncResponse(
   return {
     vehicles: [...vehicles.values()],
     trackedParts: [...parts.values()],
+    notes: [...notes.values()],
+    timeEntries: [...timeEntries.values()],
     settings,
     sync: {
       ...current.sync,

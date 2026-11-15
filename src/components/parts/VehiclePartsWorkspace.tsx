@@ -1,5 +1,3 @@
-import { getBudgetParts } from '../../utils/budgetPlanner';
-import { hasPartEstimate } from '../../utils/partEstimate';
 import React, {
   useEffect,
   useMemo,
@@ -7,48 +5,54 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Search, MoreHorizontal } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '../common/EmptyState';
-import { FilterTabs } from '../common/FilterTabs';
+import { Fab } from '../common/Fab';
 import { Input } from '../common/Input';
+import { ProgressRing } from '../common/ProgressRing';
+import { StatusPill } from '../common/StatusPill';
 import { Text } from '../common/Text';
 import type { GarageStackParamList } from '../../navigation/types';
 import { useGarageStore } from '../../store/garageStore';
-import { colors, layout, spacing, tabularNums } from '../../theme';
+import {
+  colors,
+  fontFamily,
+  layout,
+  radius,
+  spacing,
+  tabularNums,
+} from '../../theme';
+import { getBudgetParts } from '../../utils/budgetPlanner';
+import { getCommittedSpend } from '../../utils/budgetStatus';
 import { getChecklistParts } from '../../utils/filterChecklistParts';
+import { formatMoney } from '../../utils/formatMoney';
+import { getVehicleHealth } from '../../utils/healthSummary';
+import { hasPartEstimate } from '../../utils/partEstimate';
 import { statusFromChecklistChecked } from '../../utils/partsChecklistStatus';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
-import { formatMoney } from '../../utils/formatMoney';
-import { getCommittedSpend } from '../../utils/budgetStatus';
 import { useDebounce } from '../../hooks/useDebounce';
-import { getVehicleHealth } from '../../utils/healthSummary';
 import type { PartStatus } from '../../types/garage';
 import { TrackedPartRow } from './TrackedPartRow';
 
-type Scope = 'open' | 'all' | 'urgent';
+type Scope = 'open' | 'urgent' | 'all';
 
 type Props = {
   vehicleId: string;
   navigation: NativeStackNavigationProp<GarageStackParamList>;
+  /** Shown above the overview (the Parts / Details switch). */
   header?: ReactNode;
-  onRemoveVehicle?: () => void;
 };
-
-const SCOPE_OPTIONS: Array<{ value: Scope; label: string }> = [
-  { value: 'open', label: 'Open' },
-  { value: 'urgent', label: 'Urgent' },
-  { value: 'all', label: 'All' },
-];
 
 export function VehiclePartsWorkspace({
   vehicleId,
   navigation,
   header,
-  onRemoveVehicle,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState<Scope>('open');
   const debouncedSearch = useDebounce(search, 300);
@@ -61,18 +65,10 @@ export function VehiclePartsWorkspace({
     () => trackedParts.filter(part => part.vehicleId === vehicleId),
     [trackedParts, vehicleId],
   );
-
-  const scopedParts = useMemo(() => {
-    if (scope === 'open') {
-      return parts.filter(part => part.status !== 'installed');
-    }
-    if (scope === 'urgent') {
-      return parts.filter(
-        part => part.priority === 'urgent' && part.status !== 'installed',
-      );
-    }
-    return parts;
-  }, [parts, scope]);
+  const openParts = parts.filter(part => part.status !== 'installed');
+  const urgentParts = openParts.filter(part => part.priority === 'urgent');
+  const scopedParts =
+    scope === 'open' ? openParts : scope === 'urgent' ? urgentParts : parts;
 
   const checklist = useMemo(
     () =>
@@ -90,7 +86,7 @@ export function VehiclePartsWorkspace({
   ).length;
   const health = getVehicleHealth(parts);
   const spentOrOrdered = getCommittedSpend(parts);
-  const openCount = parts.filter(part => part.status !== 'installed').length;
+  const installed = parts.length - openParts.length;
   const hasQuery = search.trim() !== '';
 
   const [undo, setUndo] = useState<{
@@ -116,130 +112,165 @@ export function VehiclePartsWorkspace({
     }
   };
 
+  const scopes: Array<{ value: Scope; label: string }> = [
+    { value: 'open', label: `Open · ${openParts.length}` },
+    { value: 'urgent', label: `Urgent · ${urgentParts.length}` },
+    { value: 'all', label: `All · ${parts.length}` },
+  ];
+
+  const overview =
+    parts.length > 0 ? (
+      <View style={styles.panel}>
+        <View style={styles.overviewTop}>
+          <ProgressRing done={installed} total={parts.length} />
+          <View style={styles.overviewText}>
+            <Text style={styles.toGo}>
+              {openParts.length === 0
+                ? 'All parts installed'
+                : `${openParts.length} ${
+                    openParts.length === 1 ? 'part' : 'parts'
+                  } to go`}
+            </Text>
+            <View style={styles.pills}>
+              {health.urgentCount ? (
+                <StatusPill
+                  tone="danger"
+                  dot
+                  size="md"
+                  label={`${health.urgentCount} urgent`}
+                />
+              ) : null}
+              {health.orderedCount ? (
+                <StatusPill
+                  tone="warning"
+                  size="md"
+                  label={`${health.orderedCount} awaiting`}
+                />
+              ) : null}
+            </View>
+          </View>
+        </View>
+        <View style={styles.tiles}>
+          <View style={styles.tile}>
+            <Text size="md" tone="muted">
+              Spent or ordered
+            </Text>
+            <Text weight="semibold" style={[styles.amount, tabularNums]}>
+              {formatMoney(spentOrOrdered, currency)}
+            </Text>
+          </View>
+          <View style={styles.tile}>
+            <Text size="md" tone="muted">
+              Still to buy
+            </Text>
+            <Text weight="semibold" style={[styles.amount, tabularNums]}>
+              {budgetParts.length && missingEstimates === budgetParts.length
+                ? 'Not estimated'
+                : formatMoney(totalNeeded, currency)}
+            </Text>
+            {missingEstimates && missingEstimates < budgetParts.length ? (
+              <Text size="sm" tone="muted">
+                {missingEstimates} without a price
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    ) : null;
+
+  const tools =
+    parts.length > 0 ? (
+      <View style={styles.tools}>
+        <Input
+          appearance="outlined"
+          size="lg"
+          placeholder="Find a part"
+          leftSection={<Search size={18} color={colors.textMuted} />}
+          value={search}
+          onChangeText={setSearch}
+        />
+        <View
+          style={styles.chips}
+          accessibilityRole="tablist"
+          accessibilityLabel="Filter parts"
+        >
+          {scopes.map(option => {
+            const selected = option.value === scope;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                onPress={() => setScope(option.value)}
+                style={[styles.chip, selected && styles.chipSelected]}
+              >
+                <Text
+                  style={[
+                    styles.chipLabel,
+                    selected && styles.chipLabelSelected,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    ) : null;
+
   return (
     <View style={styles.root}>
-      {header}
-      <View style={styles.summary}>
-        <View style={styles.summaryHeading}>
-          <Text variant="label" tone="accent">
-            OVERVIEW
-          </Text>
-          {onRemoveVehicle ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Vehicle options"
-              style={styles.menu}
-              onPress={() =>
-                Alert.alert('Vehicle options', 'Manage this vehicle', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Remove from garage',
-                    style: 'destructive',
-                    onPress: onRemoveVehicle,
-                  },
-                ])
-              }
-            >
-              <MoreHorizontal size={22} color={colors.textMuted} />
-            </Pressable>
-          ) : null}
-        </View>
-        {parts.length > 0 ? (
-          <>
-            <View style={styles.summaryHeading}>
-              <View>
-                <Text variant="hero" style={tabularNums}>
-                  {openCount}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  {openCount === 1 ? 'Part to go' : 'Parts to go'}
-                </Text>
-              </View>
-              <View style={styles.summaryCost}>
-                <Text variant="title" style={tabularNums}>
-                  {formatMoney(spentOrOrdered, currency)}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  Spent or ordered
-                </Text>
-                <Text
-                  variant="title"
-                  style={[tabularNums, styles.secondFigure]}
-                >
-                  {budgetParts.length && missingEstimates === budgetParts.length
-                    ? 'Not estimated'
-                    : formatMoney(totalNeeded, currency)}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  {missingEstimates
-                    ? `Still to buy · ${missingEstimates} without a price`
-                    : 'Still to buy'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.statusLine}>
-              <View style={styles.urgent}>
-                {health.urgentCount ? <View style={styles.urgentDot} /> : null}
-                <Text variant="caption" tone="muted">
-                  {health.urgentCount} urgent
-                </Text>
-              </View>
-              <Text variant="caption" tone="muted">
-                {health.orderedCount} awaiting delivery
-              </Text>
-              <Text variant="caption" tone="muted">
-                {parts.length - openCount} installed
-              </Text>
-            </View>
-          </>
-        ) : (
-          <Text variant="caption" tone="muted">
-            Track the parts, costs and work for this vehicle.
-          </Text>
-        )}
-      </View>
-      {parts.length > 0 ? (
-        <View style={styles.tools}>
-          <Input
-            placeholder="Find a part"
-            leftSection={<Search size={16} color={colors.textDim} />}
-            value={search}
-            onChangeText={setSearch}
-          />
-          <FilterTabs
-            value={scope}
-            options={SCOPE_OPTIONS}
-            onChange={setScope}
-          />
-          <Text variant="caption" tone="muted">
-            Tick a part when it’s installed.
-          </Text>
-        </View>
-      ) : null}
       <FlatList
         keyExtractor={item => item.id}
         data={checklist}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <TrackedPartRow
-            part={item}
-            currency={currency}
-            checkbox
-            checked={item.status === 'installed'}
-            onCheckedChange={checked =>
-              handlePartCheckedChange(item.id, checked)
-            }
-            onPress={() =>
-              navigation.navigate('PartDetail', { partId: item.id })
-            }
-          />
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: layout.fabClearance + insets.bottom },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={styles.headerStack}>
+            {header}
+            {overview}
+            {tools}
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <View
+            style={[
+              styles.rowWrap,
+              index === 0 && styles.rowFirst,
+              index === checklist.length - 1 && styles.rowLast,
+            ]}
+          >
+            <TrackedPartRow
+              part={item}
+              currency={currency}
+              checkbox
+              checked={item.status === 'installed'}
+              divider={index < checklist.length - 1}
+              onCheckedChange={checked =>
+                handlePartCheckedChange(item.id, checked)
+              }
+              onPress={() =>
+                navigation.navigate('PartDetail', { partId: item.id })
+              }
+            />
+          </View>
         )}
+        ListFooterComponent={
+          checklist.length > 0 ? (
+            <Text size="md" tone="muted" style={styles.hint}>
+              Tick a part when it’s installed
+            </Text>
+          ) : null
+        }
         ListEmptyComponent={
           parts.length === 0 ? (
             <EmptyState
-              title="No parts on this build yet"
-              subtitle="Add the pieces this car still needs. Checking one off marks it installed."
+              title="No parts on this car yet"
+              subtitle="Add the parts this car needs. Tick one off when it’s installed."
               actionLabel="Add part"
               onAction={() => navigation.navigate('AddPart', { vehicleId })}
             />
@@ -259,7 +290,7 @@ export function VehiclePartsWorkspace({
                 accessibilityRole="button"
                 style={({ pressed }) => pressed && styles.pressed}
               >
-                <Text weight="medium">
+                <Text weight="semibold" tone="accent">
                   {hasQuery ? 'Clear search' : 'Show all'}
                 </Text>
               </Pressable>
@@ -268,7 +299,10 @@ export function VehiclePartsWorkspace({
         }
       />
       {undo ? (
-        <View style={styles.undoBar} accessibilityLiveRegion="polite">
+        <View
+          style={[styles.undoBar, { bottom: spacing.xl + insets.bottom }]}
+          accessibilityLiveRegion="polite"
+        >
           <Text style={styles.undoText} numberOfLines={1}>
             {undo.name} marked installed
           </Text>
@@ -288,98 +322,100 @@ export function VehiclePartsWorkspace({
             </Text>
           </Pressable>
         </View>
+      ) : parts.length > 0 ? (
+        <Fab
+          label="Add part"
+          onPress={() => navigation.navigate('AddPart', { vehicleId })}
+        />
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
+  root: { flex: 1 },
+  listContent: {
+    paddingHorizontal: layout.gutter,
+    paddingBottom: layout.fabClearance,
+    flexGrow: 1,
   },
-  summary: {
-    marginHorizontal: layout.gutter,
-    marginVertical: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: 16,
+  headerStack: { gap: 14, paddingTop: spacing.md, paddingBottom: 14 },
+  panel: {
+    padding: 18,
+    gap: spacing.lg,
+    borderRadius: radius.xl,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    gap: spacing.md,
   },
-  summaryHeading: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.md,
+  overviewTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  overviewText: { flex: 1, gap: 6 },
+  toGo: { fontFamily: fontFamily.semibold, fontSize: 20, lineHeight: 26 },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tiles: { flexDirection: 'row', gap: spacing.sm },
+  tile: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSunken,
+    gap: 2,
   },
+  amount: { fontSize: 18, lineHeight: 24 },
+  tools: { gap: 14 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+  },
+  chipSelected: {
+    backgroundColor: colors.accentContainer,
+    borderColor: colors.accent,
+  },
+  chipLabel: {
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
+    color: colors.neutralText,
+  },
+  chipLabelSelected: { fontFamily: fontFamily.semibold, color: colors.text },
+  rowWrap: {
+    backgroundColor: colors.surfaceRaised,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingHorizontal: spacing.lg,
+  },
+  rowFirst: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+  },
+  rowLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+  },
+  hint: { textAlign: 'center', marginTop: spacing.md },
   undoBar: {
     position: 'absolute',
     left: layout.gutter,
     right: layout.gutter,
-    bottom: spacing.lg,
+    bottom: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    minHeight: 56,
     paddingHorizontal: spacing.lg,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
-  undoText: {
-    flex: 1,
-  },
-  secondFigure: {
-    marginTop: spacing.sm,
-  },
-  urgent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  urgentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.danger,
-  },
-  summaryCost: { flex: 1, alignItems: 'flex-end' },
-  statusLine: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: layout.hairline,
-    borderTopColor: colors.border,
-  },
-  menu: {
-    minHeight: 44,
-    minWidth: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: -spacing.sm,
-  },
-  tools: {
-    paddingHorizontal: layout.gutter,
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: layout.gutter,
-    paddingBottom: spacing.xxl,
-    flexGrow: 1,
-  },
-  filterEmpty: {
-    paddingVertical: spacing.xl,
-    gap: spacing.md,
-  },
-  pressed: {
-    opacity: 0.72,
-  },
+  undoText: { flex: 1 },
+  filterEmpty: { paddingVertical: spacing.xl, gap: spacing.md },
+  pressed: { opacity: 0.72 },
 });

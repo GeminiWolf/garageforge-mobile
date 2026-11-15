@@ -15,7 +15,7 @@ import {
 } from '../../services/accountController';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import type { CurrencyCode } from '../../types';
-import { layout, spacing } from '../../theme';
+import { fontFamily, layout, spacing } from '../../theme';
 import { List } from '../../components/common/List';
 import { Text } from '../../components/common/Text';
 import { Input } from '../../components/common/Input';
@@ -184,11 +184,23 @@ export function SettingsScreen() {
                 label={account.email}
                 description={syncDescription}
                 value="Sync now"
+                chevron={false}
                 onPress={() => syncNow().catch(() => undefined)}
               />
-              <List.Item label="Sign out" onPress={confirmSignOut} />
+              <List.Item
+                label="Sign out"
+                chevron={false}
+                onPress={confirmSignOut}
+              />
+            </List.View>
+          ) : null}
+          {account ? (
+            <List.View style={styles.dangerGroup}>
               <List.Item
                 label="Delete account"
+                description="Permanently deletes your account and garage"
+                tone="danger"
+                chevron={false}
                 onPress={confirmDeleteAccount}
               />
             </List.View>
@@ -407,6 +419,14 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: spacing.sm,
+    paddingHorizontal: 4,
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  dangerGroup: {
+    marginTop: spacing.md,
   },
   hidden: {
     display: 'none',

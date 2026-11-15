@@ -5,6 +5,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { EmptyState } from '../../components/common/EmptyState';
+import { Fab } from '../../components/common/Fab';
 import { Screen } from '../../components/common/Screen';
 import { Text } from '../../components/common/Text';
 import { VehicleCard } from '../../components/garage/VehicleCard';
@@ -15,6 +16,8 @@ import type {
 import { useGarageStore } from '../../store/garageStore';
 import { confirmRemoveVehicle } from '../../utils/confirmRemoveVehicle';
 import { formatVehicleName } from '../../utils/formatVehicleName';
+import { describeSyncLine } from '../../utils/syncLine';
+import { syncNow, useSyncStatus } from '../../services/accountController';
 import { colors, layout, radius, spacing } from '../../theme';
 import {
   dismissBackupHint,
@@ -38,6 +41,9 @@ export function GarageHomeScreen({ navigation }: Props) {
   const trackedParts = useGarageStore(s => s.trackedParts);
   const removeVehicle = useGarageStore(s => s.removeVehicle);
   const signedIn = useGarageStore(s => s.account !== null);
+  const lastSyncedAt = useGarageStore(s => s.sync.lastSyncedAt);
+  const syncState = useSyncStatus(s => s.state);
+  const syncLine = describeSyncLine(syncState, lastSyncedAt);
   const [showBackupHint, setShowBackupHint] = useState(false);
 
   // First launch: introduce the app once, before the first car is added.
@@ -95,6 +101,9 @@ export function GarageHomeScreen({ navigation }: Props) {
               onPress={() => {
                 navigation.navigate('CarDashboard', { vehicleId: item.id });
               }}
+              onAddParts={() => {
+                navigation.navigate('AddPart', { vehicleId: item.id });
+              }}
               onLongPress={() => {
                 confirmRemoveVehicle(formatVehicleName(item), () => {
                   removeVehicle(item.id);
@@ -136,16 +145,44 @@ export function GarageHomeScreen({ navigation }: Props) {
           }
           ListHeaderComponent={
             <View style={styles.intro}>
-              <Text variant="hero">Your builds</Text>
-              <Text variant="caption" tone="muted">
+              <Text size="md" tone="muted">
                 {vehicles.length}{' '}
-                {vehicles.length === 1 ? 'vehicle' : 'vehicles'} in your garage
+                {vehicles.length === 1 ? 'vehicle' : 'vehicles'}
+                {signedIn && !syncLine.problem ? ` · ${syncLine.text}` : ''}
               </Text>
+              {signedIn && syncLine.problem ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Garage ${syncLine.text}. Try again`}
+                  onPress={() => syncNow().catch(() => undefined)}
+                  hitSlop={spacing.sm}
+                  style={({ pressed }) => [
+                    styles.syncProblem,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.syncDot} />
+                  <Text size="md" style={styles.syncProblemText}>
+                    {syncLine.text.charAt(0).toUpperCase() +
+                      syncLine.text.slice(1)}
+                  </Text>
+                  <Text size="md" weight="semibold" tone="accent">
+                    Try again
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           }
           ItemSeparatorComponent={VehicleSeparator}
         />
       )}
+      {vehicles.length > 0 ? (
+        <Fab
+          aboveSystemBar={false}
+          label="Add vehicle"
+          onPress={() => navigation.navigate('AddVehicle')}
+        />
+      ) : null}
     </View>
   );
 }
@@ -153,9 +190,9 @@ export function GarageHomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   backupHint: {
     marginTop: spacing.lg,
-    padding: spacing.lg,
+    padding: 18,
     gap: spacing.xs,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surfaceRaised,
@@ -165,7 +202,25 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     marginTop: spacing.sm,
   },
-  intro: { gap: spacing.sm, paddingTop: spacing.xl, paddingBottom: spacing.xl },
+  intro: { paddingBottom: spacing.lg, gap: spacing.sm },
+  syncProblem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.sm,
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: 18,
+    backgroundColor: colors.warningSoft,
+  },
+  syncDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.warning,
+  },
+  syncProblemText: { color: colors.warningText },
+  pressed: { opacity: 0.72 },
   container: {
     flex: 1,
   },
@@ -174,6 +229,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: layout.gutter,
-    paddingBottom: layout.gutter,
+    paddingBottom: layout.fabClearance,
   },
 });

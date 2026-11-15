@@ -10,6 +10,9 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { Button } from '../../components/common/Button';
 import { SearchableBottomSheet } from '../../components/common/SearchableBottomSheet';
 import { Input } from '../../components/common/Input';
+import { List } from '../../components/common/List';
+import { SheetFrame } from '../../components/common/SheetFrame';
+import { StatusPill } from '../../components/common/StatusPill';
 import { ProgressBar } from '../../components/common/ProgressBar';
 import { Screen } from '../../components/common/Screen';
 import { Text } from '../../components/common/Text';
@@ -19,7 +22,14 @@ import type {
 } from '../../navigation/types';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { useGarageStore } from '../../store/garageStore';
-import { colors, layout, spacing, tabularNums } from '../../theme';
+import {
+  colors,
+  fontFamily,
+  layout,
+  radius,
+  spacing,
+  tabularNums,
+} from '../../theme';
 import BudgetPartItem from '../../components/budget/BudgetPartItem';
 import { suggestBuyOrder } from '../../utils/budgetPlanner';
 import {
@@ -121,30 +131,88 @@ export function BudgetScreen() {
         <FlatList
           ListHeaderComponent={
             <View style={styles.content}>
-              <Text tone="muted">{monthLabel} · Whole garage</Text>
+              <Text size="md" tone="muted">
+                {monthLabel} · whole garage
+              </Text>
               <View style={styles.hero}>
-                <Text variant="label" tone="muted">
+                <Text size="md" tone="muted">
                   {monthlyCap === 0
-                    ? 'Set your monthly cap'
+                    ? 'No monthly cap set'
                     : isOverCap
-                    ? 'Over this month’s cap'
+                    ? 'Over this month’s cap by'
                     : 'Left to spend this month'}
                 </Text>
-                <Text variant="title" style={tabularNums}>
+                <Text
+                  style={[
+                    styles.heroAmount,
+                    tabularNums,
+                    isOverCap && styles.heroOver,
+                  ]}
+                >
                   {formatMoney(Math.abs(remaining), currency)}
                 </Text>
-                <Text tone="muted">
-                  Spent {formatMoney(spent, currency)} · Ordered{' '}
-                  {formatMoney(committed, currency)}
-                </Text>
-                <Text size="sm" tone="muted">
+                <ProgressBar
+                  value={used}
+                  max={monthlyCap}
+                  height={10}
+                  warning={isSpendingAlert && !isOverCap}
+                  accessibilityLabel="Spent and ordered versus monthly cap"
+                  style={styles.bar}
+                />
+                <View style={styles.barScale}>
+                  <Text size="md" tone="muted" style={tabularNums}>
+                    {formatMoney(used, currency)} used
+                  </Text>
+                  <Text size="md" tone="muted" style={tabularNums}>
+                    {formatMoney(monthlyCap, currency)} cap
+                  </Text>
+                </View>
+                <View style={styles.tiles}>
+                  <View style={styles.tile}>
+                    <Text size="md" tone="muted">
+                      Spent
+                    </Text>
+                    <Text style={[styles.tileAmount, tabularNums]}>
+                      {formatMoney(spent, currency)}
+                    </Text>
+                  </View>
+                  <View style={styles.tile}>
+                    <Text size="md" tone="muted">
+                      Ordered
+                    </Text>
+                    <Text style={[styles.tileAmount, tabularNums]}>
+                      {formatMoney(committed, currency)}
+                    </Text>
+                  </View>
+                </View>
+                <Text size="md" tone="muted">
                   {formatMoney(totalNeeded, currency)} estimated for parts still
                   to buy
                 </Text>
+                {isSpendingAlert && !isOverCap ? (
+                  <StatusPill
+                    tone="warning"
+                    size="md"
+                    label={`${Math.round(
+                      usagePercent,
+                    )}% of the cap is spoken for`}
+                  />
+                ) : null}
+                {missingEstimates ? (
+                  <StatusPill
+                    tone="warning"
+                    size="md"
+                    label={`${missingEstimates} ${
+                      missingEstimates === 1 ? 'part needs' : 'parts need'
+                    } a price`}
+                  />
+                ) : null}
                 {undatedCount ? (
-                  <Text size="sm" tone="warning">
-                    {undatedCount} undated costs excluded.
-                  </Text>
+                  <StatusPill
+                    tone="neutral"
+                    size="md"
+                    label={`${undatedCount} undated costs not counted`}
+                  />
                 ) : null}
                 <Pressable
                   accessibilityRole="button"
@@ -152,128 +220,113 @@ export function BudgetScreen() {
                   onPress={() => setShowDetails(value => !value)}
                   style={styles.detailsAction}
                 >
-                  <Text variant="caption" tone="accent">
+                  <Text size="md" weight="semibold" tone="accent">
                     {showDetails
-                      ? 'Hide budget details'
+                      ? 'Hide explanation'
                       : 'How this is calculated'}
                   </Text>
                 </Pressable>
                 {showDetails ? (
-                  <Text variant="caption" tone="muted">
+                  <Text size="md" tone="muted">
                     Spent is what you’ve paid this month. Ordered parts count at
                     their estimate until you add what you paid. Parts you still
                     need to buy don’t count yet.
                   </Text>
                 ) : null}
-                {missingEstimates ? (
-                  <Text size="sm" tone="warning">
-                    {missingEstimates}{' '}
-                    {missingEstimates === 1 ? 'part needs' : 'parts need'} an
-                    estimate.
-                  </Text>
-                ) : null}
-                <ProgressBar
-                  value={used}
-                  max={monthlyCap}
-                  warning={isSpendingAlert && !isOverCap}
-                  accessibilityLabel="Spent and committed versus monthly cap"
-                  style={styles.bar}
-                />
-                <View style={styles.barScale}>
-                  <Text variant="caption" tone="muted" style={tabularNums}>
-                    {formatMoney(used, currency)} used
-                  </Text>
-                  <Text variant="caption" tone="muted" style={tabularNums}>
-                    {formatMoney(monthlyCap, currency)} cap
-                  </Text>
-                </View>
-                {isSpendingAlert && !isOverCap ? (
-                  <Text size="sm" tone="warning">
-                    {Math.round(usagePercent)}% of this month’s cap is spoken
-                    for
-                  </Text>
-                ) : null}
               </View>
 
-              <Pressable
-                testID="edit-monthly-cap"
-                accessibilityRole="button"
-                onPress={() => {
-                  setCapDraft(String(settings.monthlyBudget));
-                  setCapError('');
-                  setEditingCap(true);
-                }}
-                style={styles.capAction}
-              >
-                <Text variant="caption" tone="muted">
-                  Monthly cap · {formatMoney(monthlyCap, currency)}
-                </Text>
-                <Text variant="caption" tone="accent">
-                  {monthlyCap === 0 ? 'Set cap' : 'Edit cap'}
-                </Text>
-              </Pressable>
-              {editingCap ? (
-                <View style={styles.editor}>
-                  <Input
-                    label="Monthly cap"
-                    keyboardType="decimal-pad"
-                    leftSection={getCurrencySymbol(currency)}
-                    value={capDraft}
-                    onChangeText={setCapDraft}
-                    error={capError}
-                  />
-                  <View style={styles.actions}>
-                    <Button
-                      label="Cancel"
-                      variant="ghost"
-                      onPress={() => {
-                        setEditingCap(false);
-                        Keyboard.dismiss();
-                      }}
-                    />
-                    <Button label="Save cap" onPress={saveCap} />
-                  </View>
-                </View>
-              ) : null}
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setVehicleSheet(true)}
-                style={styles.capAction}
-              >
-                <Text weight="medium">{filterLabel}</Text>
-                <Text tone="accent">Change</Text>
-              </Pressable>
+              <List.View>
+                <List.Item
+                  label="Monthly cap"
+                  value={
+                    monthlyCap === 0
+                      ? 'Not set'
+                      : formatMoney(monthlyCap, currency)
+                  }
+                  onPress={() => {
+                    setCapDraft(String(settings.monthlyBudget));
+                    setCapError('');
+                    setEditingCap(true);
+                  }}
+                />
+                <List.Item
+                  label="Parts from"
+                  value={filterLabel}
+                  onPress={() => setVehicleSheet(true)}
+                />
+              </List.View>
 
-              <Text variant="label" tone="muted" style={styles.queueLabel}>
-                Parts to buy · Priority first
+              <Text style={styles.sectionTitle}>
+                PARTS TO BUY · MOST URGENT FIRST
               </Text>
             </View>
           }
-          contentContainerStyle={{ paddingBottom: spacing.lg }}
-          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
           keyExtractor={item => item.id}
           data={neededParts}
           style={styles.list}
           ListEmptyComponent={
-            <Text tone="muted">No parts waiting to be bought.</Text>
+            <View style={styles.emptyPanel}>
+              <Text weight="semibold">Nothing left to buy</Text>
+              <Text size="md" tone="muted">
+                Parts marked To source or Sourcing show up here, most urgent
+                first.
+              </Text>
+            </View>
           }
           renderItem={({ index, item }) => (
-            <BudgetPartItem
-              index={index + 1}
-              part={item}
-              vehicleLabel={vehicleLabelById.get(item.vehicleId) ?? ''}
-              currency={currency}
-              onPress={() =>
-                navigation.navigate('PartDetail', { partId: item.id })
-              }
-            />
+            <View
+              style={[
+                styles.rowWrap,
+                index === 0 && styles.rowFirst,
+                index === neededParts.length - 1 && styles.rowLast,
+              ]}
+            >
+              <BudgetPartItem
+                index={index + 1}
+                part={item}
+                vehicleLabel={vehicleLabelById.get(item.vehicleId) ?? ''}
+                currency={currency}
+                divider={index < neededParts.length - 1}
+                onPress={() =>
+                  navigation.navigate('PartDetail', { partId: item.id })
+                }
+              />
+            </View>
           )}
         />
       )}
+      <SheetFrame
+        visible={editingCap}
+        title="Monthly cap"
+        compact
+        onClose={() => setEditingCap(false)}
+      >
+        <View style={styles.sheetBody}>
+          <Input
+            appearance="outlined"
+            size="lg"
+            autoFocus
+            keyboardType="decimal-pad"
+            leftSection={getCurrencySymbol(currency)}
+            value={capDraft}
+            onChangeText={setCapDraft}
+            error={capError || undefined}
+            accessibilityLabel="Monthly cap"
+            helper="How much you plan to spend on parts each month."
+          />
+          <Button
+            testID="save-monthly-cap"
+            label="Save"
+            size="lg"
+            onPress={saveCap}
+          />
+        </View>
+      </SheetFrame>
       <SearchableBottomSheet
         visible={vehicleSheet}
-        title="Filter parts by vehicle"
+        title="Show parts from"
         options={[
           { key: 'all', label: 'All vehicles' },
           ...vehicles.map(vehicle => ({
@@ -293,48 +346,80 @@ export function BudgetScreen() {
 }
 
 const styles = StyleSheet.create({
-  barScale: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: -spacing.xs,
-  },
-  detailsAction: { minHeight: 32, justifyContent: 'center' },
-  editor: { gap: spacing.sm },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-  },
   container: {
     flex: 1,
     paddingHorizontal: layout.gutter,
-    paddingTop: spacing.md,
   },
+  list: { flex: 1 },
+  listContent: { paddingBottom: spacing.xl },
   content: {
-    gap: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  capAction: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 44,
+    gap: 14,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
   hero: {
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
-    padding: spacing.md,
+    borderRadius: radius.xl,
+    padding: 18,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
-  bar: {
-    marginTop: spacing.sm,
+  heroAmount: {
+    fontFamily: fontFamily.bold,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.6,
+    color: colors.text,
   },
-  queueLabel: {
-    marginTop: spacing.sm,
+  heroOver: { color: colors.dangerText },
+  bar: { marginTop: spacing.xs },
+  barScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  list: {
+  tiles: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  tile: {
     flex: 1,
+    padding: spacing.md,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSunken,
+    gap: 2,
   },
+  tileAmount: { fontFamily: fontFamily.semibold, fontSize: 18, lineHeight: 24 },
+  detailsAction: { minHeight: 44, justifyContent: 'center' },
+  sectionTitle: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    color: colors.textMuted,
+    paddingHorizontal: 4,
+    marginTop: spacing.xs,
+  },
+  rowWrap: {
+    backgroundColor: colors.surfaceRaised,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingHorizontal: spacing.lg,
+  },
+  rowFirst: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+  },
+  rowLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+  },
+  emptyPanel: {
+    padding: 18,
+    gap: spacing.xs,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  sheetBody: { gap: spacing.md },
 });

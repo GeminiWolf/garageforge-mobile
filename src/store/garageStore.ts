@@ -17,6 +17,8 @@ export const useGarageStore = create<GarageState>()(
       vehicles: state.vehicles,
       trackedParts: state.trackedParts,
       settings: state.settings,
+      account: state.account,
+      sync: state.sync,
     }),
     merge: (persisted, current) => ({
       ...current,

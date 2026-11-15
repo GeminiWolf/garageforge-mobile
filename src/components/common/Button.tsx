@@ -29,6 +29,7 @@ type Props = {
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
+  testID?: string;
 };
 
 const RADIUS_VALUES: Record<Radius, number> = {
@@ -56,6 +57,7 @@ export function Button({
   disabled,
   loading,
   style,
+  testID,
 }: Props) {
   const isDisabled = disabled || loading;
   const spinnerColor =
@@ -66,6 +68,7 @@ export function Button({
 
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       onPress={onPress}
       disabled={isDisabled}

@@ -26,6 +26,7 @@ function App({ uiTest = false }: { uiTest?: boolean }) {
             make: 'Audi',
             model: 'A3',
             trim: 'Sedan',
+            updatedAt: '2026-01-01T00:00:00.000Z',
           },
         ],
         trackedParts: [],

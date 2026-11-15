@@ -42,6 +42,7 @@ describe('createGarageState', () => {
         make: 'BMW',
         model: 'M3',
         trim: 'F80',
+        updatedAt: expect.any(String),
       },
     ]);
   });
@@ -112,4 +113,63 @@ it('preserves commitment and payment dates through status transitions', () => {
   expect(store.getState().trackedParts[0].paidAt).toBe('2026-09-01T12:00:00');
   store.getState().updateTrackedPart(id, { actualCost: undefined });
   expect(store.getState().trackedParts[0].paidAt).toBeUndefined();
+});
+
+describe('sync bookkeeping', () => {
+  it('stamps updatedAt on add and update', () => {
+    const store = createTestStore();
+    const vehicleId = store.getState().addVehicle(vehicle);
+    const partId = store.getState().addTrackedPart(partFor(vehicleId));
+    const before = store.getState().trackedParts[0].updatedAt;
+    expect(store.getState().vehicles[0].updatedAt).toEqual(expect.any(String));
+
+    jest.useFakeTimers().setSystemTime(Date.parse(before) + 1000);
+    store.getState().updateTrackedPart(partId, { name: 'Air filter' });
+    jest.useRealTimers();
+
+    expect(store.getState().trackedParts[0].updatedAt > before).toBe(true);
+  });
+
+  it('queues deletions only when signed in', () => {
+    const store = createTestStore();
+    const first = store.getState().addVehicle(vehicle);
+    store.getState().addTrackedPart(partFor(first));
+    store.getState().removeVehicle(first);
+    expect(store.getState().sync.pendingDeletions).toEqual([]);
+
+    store
+      .getState()
+      .setAccount({ id: 'u1', email: 'a@example.test', name: 'A' });
+    const second = store.getState().addVehicle(vehicle);
+    store.getState().addTrackedPart(partFor(second));
+    store.getState().removeVehicle(second);
+    expect(
+      store.getState().sync.pendingDeletions.map(item => item.type),
+    ).toEqual(['vehicle', 'part']);
+  });
+
+  it('stamps settings changes only for settings stored in the account', () => {
+    const store = createTestStore();
+    store.getState().updateSettings({ apiBaseUrl: 'http://localhost:3000' });
+    expect(store.getState().sync.settingsUpdatedAt).toBeUndefined();
+    store.getState().updateSettings({ monthlyBudget: 2000 });
+    expect(store.getState().sync.settingsUpdatedAt).toEqual(expect.any(String));
+  });
+
+  it('resetLocalAccountData clears the garage and account but keeps settings', () => {
+    const store = createTestStore();
+    store
+      .getState()
+      .setAccount({ id: 'u1', email: 'a@example.test', name: 'A' });
+    store.getState().addVehicle(vehicle);
+    store.getState().updateSettings({ currency: 'EUR' });
+    store.getState().resetLocalAccountData();
+    expect(store.getState()).toMatchObject({
+      account: null,
+      vehicles: [],
+      trackedParts: [],
+      sync: { pendingDeletions: [] },
+      settings: expect.objectContaining({ currency: 'EUR' }),
+    });
+  });
 });

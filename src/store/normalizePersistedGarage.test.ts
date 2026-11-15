@@ -36,6 +36,7 @@ describe('normalizeVehicle', () => {
       make: 'BMW',
       model: 'M3',
       trim: 'F80',
+      updatedAt: expect.any(String),
     });
   });
 
@@ -47,6 +48,7 @@ describe('normalizeVehicle', () => {
       model: 'M3',
       trim: 'F80',
       engine: 'S55',
+      updatedAt: expect.any(String),
     });
   });
 
@@ -66,6 +68,7 @@ describe('normalizeTrackedPart', () => {
       priority: 'soon',
       status: 'needed',
       estimatedCost: 250,
+      updatedAt: expect.any(String),
     });
   });
 });
@@ -84,14 +87,18 @@ describe('normalizePersistedGarage', () => {
 
     expect(normalized.vehicles).toEqual([
       {
-        id: 'veh_1',
+        id: expect.stringMatching(/^[0-9a-f-]{36}$/),
         year: 2015,
         make: 'BMW',
         model: 'M3',
         trim: 'F80',
+        updatedAt: expect.any(String),
       },
     ]);
     expect(normalized.trackedParts).toHaveLength(1);
+    expect(normalized.trackedParts[0].vehicleId).toBe(
+      normalized.vehicles[0].id,
+    );
     expect(normalized.settings).toEqual({
       ...getDefaultSettings(),
       currency: 'USD',
@@ -122,5 +129,82 @@ describe('resolveApiConnection', () => {
 
   it('ignores saved overrides in release builds', () => {
     expect(resolveApiConnection(saved, defaults, false)).toEqual(defaults);
+  });
+});
+
+describe('UUID migration and sync fields', () => {
+  const legacy = {
+    vehicles: [{ id: 'veh_old_1', year: 2015, make: 'BMW', model: 'M3' }],
+    trackedParts: [
+      {
+        id: 'part_old_1',
+        vehicleId: 'veh_old_1',
+        name: 'Oil filter',
+        partNumber: '',
+        category: '',
+        priority: 'soon',
+        status: 'needed',
+        estimatedCost: 250,
+      },
+    ],
+  };
+
+  it('replaces old ids with UUIDs and keeps parts linked', () => {
+    const state = normalizePersistedGarage(legacy);
+    const [migratedVehicle] = state.vehicles;
+    const [migratedPart] = state.trackedParts;
+    expect(migratedVehicle.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(migratedPart.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(migratedPart.vehicleId).toBe(migratedVehicle.id);
+    expect(migratedVehicle.updatedAt).toEqual(expect.any(String));
+  });
+
+  it('keeps parts with an empty part number or category', () => {
+    expect(normalizePersistedGarage(legacy).trackedParts).toHaveLength(1);
+  });
+
+  it('keeps existing UUIDs unchanged', () => {
+    const id = '11111111-1111-4111-8111-111111111111';
+    const state = normalizePersistedGarage({
+      vehicles: [
+        {
+          id,
+          year: 2015,
+          make: 'BMW',
+          model: 'M3',
+          updatedAt: '2026-11-01T00:00:00.000Z',
+        },
+      ],
+    });
+    expect(state.vehicles[0]).toMatchObject({
+      id,
+      updatedAt: '2026-11-01T00:00:00.000Z',
+    });
+  });
+
+  it('restores the account and sync state, dropping invalid entries', () => {
+    const state = normalizePersistedGarage({
+      account: { id: 'u1', email: 'a@example.test', name: 'A' },
+      sync: {
+        cursor: '2026-11-10T12:00:00.000Z',
+        lastPushedAt: 'not a date',
+        pendingDeletions: [{ type: 'vehicle', record: {}, deletedAt: 'x' }],
+      },
+    });
+    expect(state.account).toEqual({
+      id: 'u1',
+      email: 'a@example.test',
+      name: 'A',
+    });
+    expect(state.sync).toEqual({
+      cursor: '2026-11-10T12:00:00.000Z',
+      pendingDeletions: [],
+    });
+  });
+
+  it('starts signed out with empty sync state', () => {
+    const state = normalizePersistedGarage(undefined);
+    expect(state.account).toBeNull();
+    expect(state.sync).toEqual({ pendingDeletions: [] });
   });
 });

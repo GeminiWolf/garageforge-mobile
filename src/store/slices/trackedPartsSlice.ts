@@ -1,6 +1,7 @@
 import { createId } from '../../utils/createId';
 import type { NewTrackedPart, TrackedPart } from '../../types/garage';
 import type { GarageSlice, TrackedPartsSlice } from '../types';
+import { queueDeletions } from './accountSlice';
 
 function toTrackedPart(part: NewTrackedPart, id: string): TrackedPart {
   const next: TrackedPart = {
@@ -12,6 +13,7 @@ function toTrackedPart(part: NewTrackedPart, id: string): TrackedPart {
     priority: part.priority,
     status: part.status,
     estimatedCost: part.estimatedCost,
+    updatedAt: new Date().toISOString(),
   };
   if (part.estimateProvided != null) {
     next.estimateProvided = part.estimateProvided;
@@ -39,7 +41,7 @@ export const createTrackedPartsSlice: GarageSlice<TrackedPartsSlice> = set => ({
   trackedParts: [],
 
   addTrackedPart: part => {
-    const id = part.id ?? createId('part');
+    const id = part.id ?? createId();
     const next = toTrackedPart(part, id);
     set(state => ({ trackedParts: [...state.trackedParts, next] }));
     return id;
@@ -54,6 +56,7 @@ export const createTrackedPartsSlice: GarageSlice<TrackedPartsSlice> = set => ({
               ...patch,
               id: part.id,
               vehicleId: part.vehicleId,
+              updatedAt: new Date().toISOString(),
               committedAt:
                 patch.committedAt ??
                 part.committedAt ??
@@ -75,8 +78,23 @@ export const createTrackedPartsSlice: GarageSlice<TrackedPartsSlice> = set => ({
   },
 
   removeTrackedPart: id => {
-    set(state => ({
-      trackedParts: state.trackedParts.filter(part => part.id !== id),
-    }));
+    set(state => {
+      const part = state.trackedParts.find(item => item.id === id);
+      return {
+        trackedParts: state.trackedParts.filter(item => item.id !== id),
+        sync: queueDeletions(
+          state,
+          part
+            ? [
+                {
+                  type: 'part' as const,
+                  record: part,
+                  deletedAt: new Date().toISOString(),
+                },
+              ]
+            : [],
+        ),
+      };
+    });
   },
 });

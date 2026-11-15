@@ -1,10 +1,22 @@
 import { getDefaultSettings } from '../config';
 import type {
+  Account,
   AppSettings,
   GaragePersistState,
+  PendingDeletion,
+  SyncState,
   TrackedPart,
   Vehicle,
 } from '../types/garage';
+import { createId, isUuid } from '../utils/createId';
+
+/** Stamp for records saved before sync existed; they count as changed. */
+const LEGACY_UPDATED_AT = () => new Date().toISOString();
+
+function asTimestamp(value: unknown): string | undefined {
+  const text = asString(value);
+  return text && Number.isFinite(Date.parse(text)) ? text : undefined;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -39,6 +51,7 @@ export function normalizeVehicle(raw: unknown): Vehicle | null {
     make,
     model,
     trim: asString(raw.trim) ?? '',
+    updatedAt: asTimestamp(raw.updatedAt) ?? LEGACY_UPDATED_AT(),
   };
   const engine = asString(raw.engine);
   if (engine) {
@@ -64,8 +77,8 @@ export function normalizeTrackedPart(raw: unknown): TrackedPart | null {
     !id ||
     !vehicleId ||
     !name ||
-    !partNumber ||
-    !category ||
+    partNumber === undefined ||
+    category === undefined ||
     (priority !== 'urgent' && priority !== 'soon' && priority !== 'someday') ||
     (status !== 'needed' &&
       status !== 'sourcing' &&
@@ -85,6 +98,7 @@ export function normalizeTrackedPart(raw: unknown): TrackedPart | null {
     priority,
     status,
     estimatedCost,
+    updatedAt: asTimestamp(raw.updatedAt) ?? LEGACY_UPDATED_AT(),
   };
   if (typeof raw.estimateProvided === 'boolean') {
     part.estimateProvided = raw.estimateProvided;
@@ -165,28 +179,114 @@ export function resolveApiConnection(
   };
 }
 
+function normalizeAccount(raw: unknown): Account | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+  const id = asString(raw.id);
+  const email = asString(raw.email);
+  if (!id || !email) {
+    return null;
+  }
+  return { id, email, name: asString(raw.name) ?? '' };
+}
+
+function normalizeDeletion(raw: unknown): PendingDeletion | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+  const deletedAt = asTimestamp(raw.deletedAt);
+  if (!deletedAt) {
+    return null;
+  }
+  if (raw.type === 'vehicle') {
+    const record = normalizeVehicle(raw.record);
+    return record && isUuid(record.id)
+      ? { type: 'vehicle', record, deletedAt }
+      : null;
+  }
+  if (raw.type === 'part') {
+    const record = normalizeTrackedPart(raw.record);
+    return record && isUuid(record.id)
+      ? { type: 'part', record, deletedAt }
+      : null;
+  }
+  return null;
+}
+
+export function normalizeSyncState(raw: unknown): SyncState {
+  const stored = isRecord(raw) ? raw : {};
+  const sync: SyncState = {
+    pendingDeletions: Array.isArray(stored.pendingDeletions)
+      ? stored.pendingDeletions.flatMap(item => {
+          const deletion = normalizeDeletion(item);
+          return deletion ? [deletion] : [];
+        })
+      : [],
+  };
+  for (const key of [
+    'cursor',
+    'lastPushedAt',
+    'lastSyncedAt',
+    'settingsUpdatedAt',
+  ] as const) {
+    const value = asTimestamp(stored[key]);
+    if (value) {
+      sync[key] = value;
+    }
+  }
+  return sync;
+}
+
+/**
+ * Older builds used ids like "veh_lq3k_x8f2". The server needs UUIDs, so
+ * those are replaced once, and parts are re-pointed at their vehicle's new id.
+ */
+export function migrateIdsToUuid(
+  vehicles: Vehicle[],
+  trackedParts: TrackedPart[],
+): { vehicles: Vehicle[]; trackedParts: TrackedPart[] } {
+  const vehicleIds = new Map<string, string>();
+  const nextVehicles = vehicles.map(vehicle => {
+    const id = isUuid(vehicle.id) ? vehicle.id : createId();
+    vehicleIds.set(vehicle.id, id);
+    return id === vehicle.id ? vehicle : { ...vehicle, id };
+  });
+  const nextParts = trackedParts.map(part => {
+    const id = isUuid(part.id) ? part.id : createId();
+    const vehicleId = vehicleIds.get(part.vehicleId) ?? part.vehicleId;
+    return id === part.id && vehicleId === part.vehicleId
+      ? part
+      : { ...part, id, vehicleId };
+  });
+  return { vehicles: nextVehicles, trackedParts: nextParts };
+}
+
 export function normalizePersistedGarage(raw: unknown): GaragePersistState {
   const stored = isRecord(raw) ? raw : {};
-  const vehicles = Array.isArray(stored.vehicles)
+  const rawVehicles = Array.isArray(stored.vehicles)
     ? stored.vehicles.flatMap(item => {
         const vehicle = normalizeVehicle(item);
         return vehicle ? [vehicle] : [];
       })
     : [];
-  const vehicleIds = new Set(vehicles.map(vehicle => vehicle.id));
-  const trackedParts = Array.isArray(stored.trackedParts)
+  const rawVehicleIds = new Set(rawVehicles.map(vehicle => vehicle.id));
+  const rawParts = Array.isArray(stored.trackedParts)
     ? stored.trackedParts.flatMap(item => {
         const part = normalizeTrackedPart(item);
-        if (!part || !vehicleIds.has(part.vehicleId)) {
+        if (!part || !rawVehicleIds.has(part.vehicleId)) {
           return [];
         }
         return [part];
       })
     : [];
+  const { vehicles, trackedParts } = migrateIdsToUuid(rawVehicles, rawParts);
 
   return {
     vehicles,
     trackedParts,
     settings: normalizeSettings(stored.settings),
+    account: normalizeAccount(stored.account),
+    sync: normalizeSyncState(stored.sync),
   };
 }

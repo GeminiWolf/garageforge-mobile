@@ -6,6 +6,17 @@ import {
   getBudgetOverview,
 } from '../../utils/budgetStatus';
 import type { GarageSlice, SettingsSlice } from '../types';
+import type { AppSettings } from '../../types/garage';
+
+/** Settings stored in the user's account; the rest stay on the device. */
+export const SYNCED_SETTING_KEYS = [
+  'currency',
+  'units',
+  'region',
+  'monthlyBudget',
+  'budgetRollover',
+  'spendingAlertThreshold',
+] as const satisfies readonly (keyof AppSettings)[];
 
 export const createSettingsSlice: GarageSlice<SettingsSlice> = (set, get) => ({
   settings: getDefaultSettings(),
@@ -14,7 +25,18 @@ export const createSettingsSlice: GarageSlice<SettingsSlice> = (set, get) => ({
     set(state => {
       const settings = { ...state.settings, ...patch };
       setApiBearerToken(settings.apiBearerToken ?? '');
-      return { settings };
+      const touchesSynced = SYNCED_SETTING_KEYS.some(
+        key => key in patch && patch[key] !== state.settings[key],
+      );
+      return touchesSynced
+        ? {
+            settings,
+            sync: {
+              ...state.sync,
+              settingsUpdatedAt: new Date().toISOString(),
+            },
+          }
+        : { settings };
     });
   },
 

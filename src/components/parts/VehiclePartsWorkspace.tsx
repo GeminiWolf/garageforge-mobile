@@ -127,9 +127,7 @@ export function VehiclePartsWorkspace({
             <Text style={styles.toGo}>
               {openParts.length === 0
                 ? 'All parts installed'
-                : `${openParts.length} ${
-                    openParts.length === 1 ? 'part' : 'parts'
-                  } to go`}
+                : `${installed} of ${parts.length} installed`}
             </Text>
             <View style={styles.pills}>
               {health.urgentCount ? (
@@ -144,7 +142,7 @@ export function VehiclePartsWorkspace({
                 <StatusPill
                   tone="warning"
                   size="md"
-                  label={`${health.orderedCount} awaiting`}
+                  label={`${health.orderedCount} awaiting delivery`}
                 />
               ) : null}
             </View>
@@ -364,9 +362,9 @@ const styles = StyleSheet.create({
   tools: { gap: 14 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 18,
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
     justifyContent: 'center',

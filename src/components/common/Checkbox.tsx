@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Check } from 'lucide-react-native';
-import { colors, spacing } from '../../theme';
+import { colors } from '../../theme';
 
 type Props = {
   checked?: boolean;
@@ -29,7 +29,8 @@ export function Checkbox({
       accessibilityRole="checkbox"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked, disabled }}
-      hitSlop={spacing.sm}
+      // 24px box, 48px touch area (Android's minimum).
+      hitSlop={12}
       style={({ pressed }) => [
         styles.box,
         {

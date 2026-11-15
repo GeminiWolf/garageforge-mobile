@@ -44,6 +44,8 @@ export function StatusStepper({ value, onChange }: Props) {
             >
               {done ? (
                 <Check size={14} color={colors.bg} strokeWidth={3} />
+              ) : active ? (
+                <View style={styles.activeCore} />
               ) : null}
             </View>
             <Text
@@ -85,15 +87,33 @@ const styles = StyleSheet.create({
     height: DOT,
     borderRadius: DOT / 2,
     borderWidth: 2,
+    borderStyle: 'dashed',
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotDone: { backgroundColor: colors.accent, borderColor: colors.accent },
+  dotDone: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+    borderStyle: 'solid',
+  },
+  // The step the part is at: solid amber with a soft halo, never hollow.
   dotActive: {
-    borderWidth: 3,
-    borderColor: colors.warning,
+    backgroundColor: colors.warning,
+    borderColor: colors.warningSoft,
+    borderStyle: 'solid',
+    borderWidth: 4,
+    width: DOT + 8,
+    height: DOT + 8,
+    borderRadius: (DOT + 8) / 2,
+    marginTop: -4,
+    marginBottom: -4,
+  },
+  activeCore: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.bg,
   },
   label: {

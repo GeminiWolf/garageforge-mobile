@@ -206,12 +206,18 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
                 ? `Updated ${formatShortDate(vehicle.mileageUpdatedAt)}`
                 : 'Add the odometer reading'}
             </Text>
-            <Button
-              label={vehicle.mileage != null ? 'Update' : 'Add'}
-              variant="secondary"
+            <Pressable
+              accessibilityRole="button"
               onPress={() => open({ kind: 'mileage' })}
-              style={styles.tileButton}
-            />
+              style={({ pressed }) => [
+                styles.logButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text weight="semibold" style={styles.logLabel}>
+                {vehicle.mileage != null ? 'Update mileage' : 'Add mileage'}
+              </Text>
+            </Pressable>
           </View>
           <View style={styles.tile}>
             <View style={styles.tileLabel}>
@@ -247,18 +253,15 @@ export function VehicleDetailsPanel({ vehicleId, header }: Props) {
           <View style={styles.panel}>
             <View style={styles.row}>
               <Text tone="muted">Engine</Text>
-              <Text style={styles.rowValue} numberOfLines={2}>
-                {engineLabel || 'Not recorded'}
-              </Text>
-            </View>
-            {engineLabel ? (
-              <View style={[styles.row, styles.rowSmall, styles.rowDivider]}>
-                <Text size="sm" tone="muted">
-                  Filled in from the catalogue
+              <View style={styles.engineValue}>
+                <Text style={styles.rowValue} numberOfLines={2}>
+                  {engineLabel || 'Not recorded'}
                 </Text>
-                <StatusPill tone="accent" label="Catalogue" />
+                {engineLabel ? (
+                  <StatusPill tone="accent" label="From the catalogue" />
+                ) : null}
               </View>
-            ) : null}
+            </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
@@ -573,10 +576,9 @@ const styles = StyleSheet.create({
   },
   tileLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tileValue: { fontFamily: fontFamily.semibold, fontSize: 22, lineHeight: 28 },
-  tileButton: { marginTop: 6, minHeight: 40 },
   logButton: {
     marginTop: 6,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: radius.md,
     backgroundColor: colors.accentContainer,
     alignItems: 'center',
@@ -613,7 +615,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.sm,
   },
-  rowSmall: { minHeight: 40 },
+  engineValue: { flexShrink: 1, alignItems: 'flex-end', gap: 4 },
   rowDivider: { borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   rowValue: { flexShrink: 1, textAlign: 'right' },
   entryText: { flex: 1, minWidth: 0, gap: 2 },
@@ -643,7 +645,7 @@ const styles = StyleSheet.create({
   sheetBody: { gap: spacing.md },
   quickTimes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   quickTime: {
-    height: 40,
+    height: 44,
     paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,

@@ -34,6 +34,22 @@ yarn android
 
 ### iOS
 
+The `ios` script supports Xcode 27 Device Hub and falls back to Simulator on older Xcode versions. It builds, installs, and launches GarageForge using Xcode and `simctl`, without the React Native CLI's hardcoded Simulator.app launcher.
+
+Start Metro in another terminal (`npm start`), then boot one iOS device in Device Hub and run `npm run ios`. To select a specific device:
+
+```sh
+npm run ios -- --list
+npm run ios -- --udid YOUR_DEVICE_UDID
+# Or select by exact name (use UDID if names are duplicated):
+npm run ios -- --simulator "iPhone 18 Pro"
+# Inspect the selected workflow without building:
+npm run ios -- --dry-run
+```
+
+Use `--mode Release` for a release build. This script targets simulators; for a physical device, run the garageforge scheme from Xcode. Device Hub is available under Xcode > Open Developer Tool > Device Hub. The selected toolchain comes from `DEVELOPER_DIR` or `xcode-select`.
+
+
 For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
 
 The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
@@ -95,3 +111,14 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+## iOS keyboard UI test
+
+With Metro running (`npm start`), run the XCUITest scheme on an available simulator:
+
+```sh
+npm run ios -- --list
+npm run test:ios -- -destination 'id=YOUR_DEVICE_UDID'
+```
+
+The test opens a manual part form, focuses Notes, verifies that the field and Save button sit above the software keyboard, and switches focus with the keyboard open. Debug launches with `GARAGEFORGE_UI_TEST=1` use an in-memory garage fixture; saved garage data is not overwritten. Xcode test results include a screenshot attachment. Launch the app normally after testing to return to your saved garage.

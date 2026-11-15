@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "ios": "node scripts/run-ios.js",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"{src,__tests__,scripts}/**/*.{js,ts,tsx}\" \"*.{js,ts,tsx}\"",
+    "format:check": "prettier --check \"{src,__tests__,scripts}/**/*.{js,ts,tsx}\" \"*.{js,ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
     "start": "react-native start",
     "test": "jest",
     "version:patch": "node scripts/bump-version.js patch",
@@ -18,7 +22,8 @@
     "build:android:apk": "cd android && ./gradlew assembleRelease",
     "build:android:aab": "cd android && ./gradlew bundleRelease",
     "build:ios": "xcodebuild -workspace ios/garageforge.xcworkspace -scheme garageforge -configuration Release -sdk iphoneos -archivePath build/GarageForge.xcarchive archive",
-    "clean:android": "cd android && ./gradlew clean"
+    "clean:android": "cd android && ./gradlew clean",
+    "test:ios": "xcodebuild -workspace ios/garageforge.xcworkspace -scheme GarageForgeUITests -derivedDataPath ios/build -parallel-testing-enabled NO test"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",

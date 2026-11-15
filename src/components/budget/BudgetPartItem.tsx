@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { CurrencyCode, TrackedPart } from '../../types';
 import { colors, layout, spacing, tabularNums } from '../../theme';
 import { Text } from '../common/Text';
+import { hasPartEstimate } from '../../utils/partEstimate';
 import { formatMoney } from '../../utils/formatMoney';
 
 const PRIORITY_LABELS: Record<TrackedPart['priority'], string> = {
@@ -41,7 +42,9 @@ export default function BudgetPartItem({
         </Text>
       </View>
       <Text size="sm" tone="muted" style={tabularNums}>
-        {formatMoney(part.estimatedCost, currency)}
+        {hasPartEstimate(part)
+          ? formatMoney(part.estimatedCost, currency)
+          : 'Not estimated'}
       </Text>
     </>
   );

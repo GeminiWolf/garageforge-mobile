@@ -1,7 +1,9 @@
+import { getBudgetParts } from '../../utils/budgetPlanner';
+import { hasPartEstimate } from '../../utils/partEstimate';
 import React, { useMemo, useState, type ReactNode } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Search } from 'lucide-react-native';
+import { Search, MoreHorizontal } from 'lucide-react-native';
 
 import { EmptyState } from '../common/EmptyState';
 import { FilterTabs } from '../common/FilterTabs';
@@ -15,6 +17,7 @@ import { statusFromChecklistChecked } from '../../utils/partsChecklistStatus';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { formatMoney } from '../../utils/formatMoney';
 import { useDebounce } from '../../hooks/useDebounce';
+import { getVehicleHealth } from '../../utils/healthSummary';
 import { TrackedPartRow } from './TrackedPartRow';
 
 type Scope = 'open' | 'all' | 'urgent';
@@ -73,6 +76,11 @@ export function VehiclePartsWorkspace({
   );
 
   const { totalNeeded } = useBudgetOverview(parts);
+  const budgetParts = getBudgetParts(parts);
+  const missingEstimates = budgetParts.filter(
+    part => !hasPartEstimate(part),
+  ).length;
+  const health = getVehicleHealth(parts);
   const openCount = parts.filter(part => part.status !== 'installed').length;
   const hasQuery = search.trim() !== '';
 
@@ -84,12 +92,76 @@ export function VehiclePartsWorkspace({
     <View style={styles.root}>
       {header}
       <View style={styles.summary}>
-        <Text size="sm" tone="muted">
-          {openCount === 0 ? 'Build is clear' : `${openCount} still needed`}
-        </Text>
-        <Text size="sm" tone="muted" style={tabularNums}>
-          {formatMoney(totalNeeded, currency)}
-        </Text>
+        <View style={styles.summaryHeading}>
+          <Text variant="label" tone="accent">
+            BUILD OVERVIEW
+          </Text>
+          {onRemoveVehicle ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Vehicle options"
+              style={styles.menu}
+              onPress={() =>
+                Alert.alert('Vehicle options', 'Manage this vehicle', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Remove from garage',
+                    style: 'destructive',
+                    onPress: onRemoveVehicle,
+                  },
+                ])
+              }
+            >
+              <MoreHorizontal size={22} color={colors.textMuted} />
+            </Pressable>
+          ) : null}
+        </View>
+        {parts.length > 0 ? (
+          <>
+            <View style={styles.summaryHeading}>
+              <View>
+                <Text variant="hero" style={tabularNums}>
+                  {openCount}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  Open parts
+                </Text>
+              </View>
+              <View style={styles.summaryCost}>
+                <Text variant="title" style={tabularNums}>
+                  {budgetParts.length && missingEstimates === budgetParts.length
+                    ? 'Not estimated'
+                    : formatMoney(totalNeeded, currency)}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  {missingEstimates
+                    ? `${missingEstimates} ${
+                        missingEstimates === 1 ? 'part' : 'parts'
+                      } without estimates`
+                    : 'Estimated to source'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.statusLine}>
+              <Text
+                variant="caption"
+                tone={health.urgentCount ? 'danger' : 'muted'}
+              >
+                {health.urgentCount} urgent
+              </Text>
+              <Text variant="caption" tone="muted">
+                {health.orderedCount} awaiting delivery
+              </Text>
+              <Text variant="caption" tone="muted">
+                {parts.length - openCount} installed
+              </Text>
+            </View>
+          </>
+        ) : (
+          <Text variant="caption" tone="muted">
+            Track the parts, costs and work for this vehicle.
+          </Text>
+        )}
       </View>
       {parts.length > 0 ? (
         <View style={styles.tools}>
@@ -171,21 +243,6 @@ export function VehiclePartsWorkspace({
                 <Text weight="medium">Add part</Text>
               </Pressable>
             ) : null}
-            {onRemoveVehicle ? (
-              <Pressable
-                onPress={onRemoveVehicle}
-                accessibilityRole="button"
-                accessibilityLabel="Remove from garage"
-                style={({ pressed }) => [
-                  styles.footerAdd,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text weight="medium" tone="danger">
-                  Remove from garage
-                </Text>
-              </Pressable>
-            ) : null}
           </View>
         }
       />
@@ -198,12 +255,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summary: {
+    marginHorizontal: layout.gutter,
+    marginVertical: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    gap: spacing.md,
+  },
+  summaryHeading: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
-    paddingHorizontal: layout.gutter,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  summaryCost: { flex: 1, alignItems: 'flex-end' },
+  statusLine: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
     paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    borderTopWidth: layout.hairline,
+    borderTopColor: colors.border,
+  },
+  menu: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: -spacing.sm,
   },
   tools: {
     paddingHorizontal: layout.gutter,
@@ -214,7 +295,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    flex: 1,
     paddingHorizontal: layout.gutter,
     paddingBottom: spacing.xxl,
     flexGrow: 1,

@@ -22,6 +22,10 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<GarageStackParamList>
 >;
 
+function VehicleSeparator() {
+  return <View style={{ height: spacing.md }} />;
+}
+
 export function GarageHomeScreen({ navigation }: Props) {
   const hasHydrated = useGarageStore(s => s.hasHydrated);
   const vehicles = useGarageStore(s => s.vehicles);
@@ -62,6 +66,17 @@ export function GarageHomeScreen({ navigation }: Props) {
               }}
             />
           )}
+          ListHeaderComponent={
+            <View style={styles.intro}>
+              <Text variant="hero">Your builds</Text>
+              <Text variant="caption" tone="muted">
+                {vehicles.length}{' '}
+                {vehicles.length === 1 ? 'vehicle' : 'vehicles'} in the garage ·
+                Parts and progress, in one place
+              </Text>
+            </View>
+          }
+          ItemSeparatorComponent={VehicleSeparator}
           ListFooterComponent={
             <Pressable
               onPress={() => navigation.navigate('AddVehicle')}
@@ -82,6 +97,7 @@ export function GarageHomeScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  intro: { gap: spacing.sm, paddingTop: spacing.xl, paddingBottom: spacing.xl },
   container: {
     flex: 1,
   },

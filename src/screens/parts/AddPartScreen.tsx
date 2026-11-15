@@ -1,29 +1,33 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   KeyboardAvoidingView,
+  Keyboard,
+  TextInput,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
-import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {Button} from '../../components/common/Button';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Button } from '../../components/common/Button';
 import { Chip } from '../../components/common/Chip';
-import {Input} from '../../components/common/Input';
+import { Input } from '../../components/common/Input';
 import { NestedCategorySheet } from '../../components/common/NestedCategorySheet';
-import {SkeletonList} from '../../components/common/Skeleton';
-import {Text} from '../../components/common/Text';
-import type {GarageStackParamList} from '../../navigation/types';
-import {getParts} from '../../services/api';
-import {useGarageStore} from '../../store/garageStore';
+import { SkeletonList } from '../../components/common/Skeleton';
+import { Text } from '../../components/common/Text';
+import type { GarageStackParamList } from '../../navigation/types';
+import { getParts } from '../../services/api';
+import { useGarageStore } from '../../store/garageStore';
 import type {
   CatalogPartOption,
   PartCategoryOption,
   PartPriority,
 } from '../../types';
-import {formatCategoryPath} from '../../utils/formatCategoryPath';
-import {getCatalogPartDefaults} from '../../utils/getCatalogPartDefaults';
+import { formatCategoryPath } from '../../utils/formatCategoryPath';
+import { getCurrencySymbol } from '../../utils/formatMoney';
+import { getCatalogPartDefaults } from '../../utils/getCatalogPartDefaults';
 import { colors, layout, spacing } from '../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -32,9 +36,52 @@ type Props = NativeStackScreenProps<GarageStackParamList, 'AddPart'>;
 const PRIORITIES: PartPriority[] = ['urgent', 'soon', 'someday'];
 const SAVE_VALIDATION_ERROR = 'Name is required.';
 
-export function AddPartScreen({navigation, route}: Props) {
+export function AddPartScreen({ navigation, route }: Props) {
+  const viewportRef = useRef<View>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const inputRefs = {
+    name: useRef<TextInput>(null),
+    number: useRef<TextInput>(null),
+    cost: useRef<TextInput>(null),
+    notes: useRef<TextInput>(null),
+  };
+  const activeInput = useRef<TextInput | null>(null);
+  const scrollOffset = useRef(0);
+  const revealFocusedInput = useCallback(() => {
+    const input = activeInput.current;
+    const scroll = scrollRef.current;
+    if (!input || !scroll || !viewportRef.current) return;
+    viewportRef.current.measureInWindow((_x, top, _width, height) => {
+      input.measureInWindow((_inputX, inputTop, _inputWidth, inputHeight) => {
+        if (activeInput.current !== input || height <= 0) return;
+        const lowerOverflow =
+          inputTop + inputHeight + spacing.lg - (top + height);
+        const upperOverflow = inputTop - spacing.lg - top;
+        const delta =
+          lowerOverflow > 0
+            ? lowerOverflow
+            : upperOverflow < 0
+            ? upperOverflow
+            : 0;
+        if (delta)
+          scroll.scrollTo({
+            y: Math.max(0, scrollOffset.current + delta),
+            animated: true,
+          });
+      });
+    });
+  }, []);
+  useEffect(() => {
+    const subscription = Keyboard.addListener(
+      'keyboardDidShow',
+      revealFocusedInput,
+    );
+    return () => subscription.remove();
+  }, [revealFocusedInput]);
+  const headerHeight = useHeaderHeight();
   const { bottom } = useSafeAreaInsets();
   const { vehicleId } = route.params;
+  const currency = useGarageStore(s => s.settings.currency);
   const apiBaseUrl = useGarageStore(s => s.settings.apiBaseUrl);
   const addTrackedPart = useGarageStore(s => s.addTrackedPart);
 
@@ -64,9 +111,7 @@ export function AddPartScreen({navigation, route}: Props) {
     if (selectedCatalog) {
       const defaults = getCatalogPartDefaults(
         selectedCatalog,
-        formatCategoryPath(categoryPath) ||
-          selectedCategory?.name ||
-          'Catalog',
+        formatCategoryPath(categoryPath) || selectedCategory?.name || 'Catalog',
       );
       setName(defaults.name);
       setPartNumber(defaults.partNumber);
@@ -125,6 +170,7 @@ export function AddPartScreen({navigation, route}: Props) {
       priority,
       status: 'needed',
       estimatedCost: Number(estimatedCost) || 0,
+      estimateProvided: estimatedCost.trim() !== '',
       notes: notes.trim() || undefined,
     });
     navigation.goBack();
@@ -135,167 +181,250 @@ export function AddPartScreen({navigation, route}: Props) {
     selectedCategory?.name ||
     'Choose a category';
   const canRetryLoad =
-    error !== '' &&
-    error !== SAVE_VALIDATION_ERROR &&
-    selectedCategory != null;
+    error !== '' && error !== SAVE_VALIDATION_ERROR && selectedCategory != null;
 
   return (
     <View style={styles.root}>
       <KeyboardAvoidingView
+        keyboardVerticalOffset={headerHeight}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
-        <ScrollView
+        <View
+          ref={viewportRef}
           style={styles.flex}
-          contentContainerStyle={[styles.content, { paddingBottom: bottom }]}
-          keyboardShouldPersistTaps="handled"
+          onLayout={() => requestAnimationFrame(revealFocusedInput)}
         >
-          {error ? (
-            <View style={styles.errorRow}>
-              <Text variant="caption" tone="danger" style={styles.error}>
-                {error}
-              </Text>
-              {canRetryLoad ? (
-                <Button
-                  label="Retry"
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => {
-                    if (selectedCategory == null) {
-                      return;
-                    }
-                    loadByCategory(selectedCategory, categoryPath);
-                  }}
-                />
-              ) : null}
-            </View>
-          ) : null}
-
-          <Text tone="muted">
-            Start from the catalogue. If the part isn’t listed, enter it
-            yourself.
-          </Text>
-
-          <Pressable
-            style={styles.categoryField}
-            onPress={() => setCategorySheetOpen(true)}
+          <ScrollView
+            ref={scrollRef}
+            onScroll={event => {
+              scrollOffset.current = event.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            keyboardDismissMode="interactive"
+            style={styles.flex}
+            contentContainerStyle={[styles.content, { paddingBottom: bottom }]}
+            keyboardShouldPersistTaps="handled"
           >
-            <Text variant="label" tone="muted">
-              Category
-            </Text>
-            <Text variant="subtitle">{categoryLabel}</Text>
-          </Pressable>
-
-          {selectedCategory && !manual && selectedCatalog == null ? (
-            <Input
-              placeholder="Filter by name"
-              value={query}
-              onChangeText={setQuery}
-              accessibilityLabel="Filter catalog parts by name"
-            />
-          ) : null}
-
-          {!manual && loading ? <SkeletonList count={5} /> : null}
-
-          {!manual && selectedCategory && !loading && selectedCatalog == null
-            ? results.map(part => (
-                <Pressable
-                  key={part.id}
-                  style={styles.result}
-                  onPress={() => setSelectedCatalog(part)}
-                >
-                  <Text tone="muted">{part.name}</Text>
-                </Pressable>
-              ))
-            : null}
-
-          {!manual && selectedCatalog ? (
-            <Pressable
-              onPress={() => setSelectedCatalog(null)}
-              style={styles.result}
-            >
-              <Text variant="label" tone="muted">
-                Selected
-              </Text>
-              <Text variant="subtitle">{selectedCatalog.name}</Text>
-              <Text size="sm" tone="muted">
-                Choose a different part
-              </Text>
-            </Pressable>
-          ) : null}
-
-          {!manual &&
-          selectedCategory &&
-          !loading &&
-          selectedCatalog == null &&
-          results.length === 0 ? (
-            <Text variant="caption" tone="muted" style={styles.emptyResults}>
-              Nothing in this category matches.
-            </Text>
-          ) : null}
-
-          {!manual ? (
-            <Pressable
-              onPress={() => {
-                setManual(true);
-                setSelectedCatalog(null);
-              }}
-              style={styles.manualLink}
-            >
-              <Text weight="medium">Can’t find it? Enter it manually</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => setManual(false)}
-              style={styles.manualLink}
-            >
-              <Text tone="muted">Back to catalogue</Text>
-            </Pressable>
-          )}
-
-          {showDetails ? (
-            <View style={styles.details}>
-              <Input
-                label="Name"
-                value={name}
-                onChangeText={setName}
-                containerStyle={styles.field}
-              />
-              <Input
-                label="Part number"
-                value={partNumber}
-                onChangeText={setPartNumber}
-                containerStyle={styles.field}
-              />
-              <Input
-                label="Estimated cost"
-                value={estimatedCost}
-                onChangeText={setEstimatedCost}
-                keyboardType="decimal-pad"
-                containerStyle={styles.field}
-              />
-              <Input
-                label="Notes"
-                value={notes}
-                onChangeText={setNotes}
-                containerStyle={styles.field}
-              />
-              <Text variant="label" tone="muted">
-                Priority
-              </Text>
-              <View style={styles.chips}>
-                {PRIORITIES.map(p => (
-                  <Chip
-                    key={p}
-                    label={p}
-                    selected={priority === p}
-                    onPress={() => setPriority(p)}
+            {error && error !== SAVE_VALIDATION_ERROR ? (
+              <View style={styles.errorRow}>
+                <Text variant="caption" tone="danger" style={styles.error}>
+                  {error}
+                </Text>
+                {canRetryLoad ? (
+                  <Button
+                    label="Retry"
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => {
+                      if (selectedCategory == null) {
+                        return;
+                      }
+                      loadByCategory(selectedCategory, categoryPath);
+                    }}
                   />
-                ))}
+                ) : null}
               </View>
-            </View>
-          ) : null}
-        </ScrollView>
+            ) : null}
+
+            {manual ? (
+              <View style={styles.manualIntro}>
+                <Text variant="title">Enter a part</Text>
+                <Text variant="caption" tone="muted">
+                  Only the name is required. Add other details when you have
+                  them.
+                </Text>
+              </View>
+            ) : (
+              <Text tone="muted">
+                Start from the catalogue. If the part isn’t listed, enter it
+                yourself.
+              </Text>
+            )}
+
+            {!manual ? (
+              <Pressable
+                accessibilityRole="button"
+                style={styles.categoryField}
+                onPress={() => setCategorySheetOpen(true)}
+              >
+                <Text variant="label" tone="muted">
+                  Category
+                </Text>
+                <Text variant="subtitle">{categoryLabel}</Text>
+              </Pressable>
+            ) : null}
+
+            {selectedCategory && !manual && selectedCatalog == null ? (
+              <Input
+                placeholder="Filter by name"
+                value={query}
+                onChangeText={setQuery}
+                accessibilityLabel="Filter catalog parts by name"
+              />
+            ) : null}
+
+            {!manual && loading ? <SkeletonList count={5} /> : null}
+
+            {!manual && selectedCategory && !loading && selectedCatalog == null
+              ? results.map(part => (
+                  <Pressable
+                    key={part.id}
+                    style={styles.result}
+                    onPress={() => setSelectedCatalog(part)}
+                  >
+                    <Text tone="muted">{part.name}</Text>
+                  </Pressable>
+                ))
+              : null}
+
+            {!manual && selectedCatalog ? (
+              <Pressable
+                onPress={() => setSelectedCatalog(null)}
+                style={styles.result}
+              >
+                <Text variant="label" tone="muted">
+                  Selected
+                </Text>
+                <Text variant="subtitle">{selectedCatalog.name}</Text>
+                <Text size="sm" tone="muted">
+                  Choose a different part
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {!manual &&
+            selectedCategory &&
+            !loading &&
+            selectedCatalog == null &&
+            results.length === 0 ? (
+              <Text variant="caption" tone="muted" style={styles.emptyResults}>
+                Nothing in this category matches.
+              </Text>
+            ) : null}
+
+            {!manual ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setManual(true);
+                  setSelectedCatalog(null);
+                }}
+                style={styles.manualLink}
+              >
+                <Text weight="medium">Can’t find it? Enter it manually</Text>
+              </Pressable>
+            ) : null}
+
+            {showDetails ? (
+              <View style={styles.details}>
+                <Input
+                  appearance="outlined"
+                  label="Part name"
+                  testID="part-name"
+                  inputRef={inputRefs.name}
+                  onFocus={() => {
+                    activeInput.current = inputRefs.name.current;
+                    requestAnimationFrame(revealFocusedInput);
+                  }}
+                  onBlur={() => {
+                    if (activeInput.current === inputRefs.name.current)
+                      activeInput.current = null;
+                  }}
+                  placeholder="e.g. Front brake pads"
+                  error={error === SAVE_VALIDATION_ERROR ? error : undefined}
+                  value={name}
+                  onChangeText={setName}
+                  containerStyle={styles.field}
+                />
+                <Input
+                  appearance="outlined"
+                  label="Part number (optional)"
+                  testID="part-number"
+                  inputRef={inputRefs.number}
+                  onFocus={() => {
+                    activeInput.current = inputRefs.number.current;
+                    requestAnimationFrame(revealFocusedInput);
+                  }}
+                  onBlur={() => {
+                    if (activeInput.current === inputRefs.number.current)
+                      activeInput.current = null;
+                  }}
+                  placeholder="e.g. 8V0 698 151"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  value={partNumber}
+                  onChangeText={setPartNumber}
+                  containerStyle={styles.field}
+                />
+                <Input
+                  appearance="outlined"
+                  label="Estimated cost (optional)"
+                  testID="part-cost"
+                  inputRef={inputRefs.cost}
+                  onFocus={() => {
+                    activeInput.current = inputRefs.cost.current;
+                    requestAnimationFrame(revealFocusedInput);
+                  }}
+                  onBlur={() => {
+                    if (activeInput.current === inputRefs.cost.current)
+                      activeInput.current = null;
+                  }}
+                  placeholder="0.00"
+                  leftSection={getCurrencySymbol(currency)}
+                  value={estimatedCost}
+                  onChangeText={setEstimatedCost}
+                  keyboardType="decimal-pad"
+                  containerStyle={styles.field}
+                />
+                <Input
+                  appearance="outlined"
+                  label="Notes (optional)"
+                  testID="part-notes"
+                  inputRef={inputRefs.notes}
+                  onFocus={() => {
+                    activeInput.current = inputRefs.notes.current;
+                    requestAnimationFrame(revealFocusedInput);
+                  }}
+                  onBlur={() => {
+                    if (activeInput.current === inputRefs.notes.current)
+                      activeInput.current = null;
+                  }}
+                  placeholder="Supplier, fitment or installation notes"
+                  multiline
+                  inputStyle={styles.notesInput}
+                  value={notes}
+                  onChangeText={setNotes}
+                  containerStyle={styles.field}
+                />
+                <Text variant="label" tone="muted">
+                  Priority
+                </Text>
+                <View style={styles.chips}>
+                  {PRIORITIES.map(p => (
+                    <Chip
+                      key={p}
+                      label={p}
+                      selected={priority === p}
+                      onPress={() => setPriority(p)}
+                    />
+                  ))}
+                </View>
+                {manual ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setManual(false)}
+                    style={styles.manualLink}
+                  >
+                    <Text variant="caption" tone="accent">
+                      Choose from catalogue instead
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+          </ScrollView>
+        </View>
         {showDetails ? (
           <View style={[styles.footer, { paddingBottom: bottom + spacing.md }]}>
             <Button label="Save to this build" onPress={save} />
@@ -308,6 +437,12 @@ export function AddPartScreen({navigation, route}: Props) {
         baseUrl={apiBaseUrl}
         selectedId={selectedCategory?.id}
         onClose={() => setCategorySheetOpen(false)}
+        onManualEntry={() => {
+          setCategorySheetOpen(false);
+          setSelectedCatalog(null);
+          setManual(true);
+          setError('');
+        }}
         onSelect={loadByCategory}
       />
     </View>
@@ -315,6 +450,8 @@ export function AddPartScreen({navigation, route}: Props) {
 }
 
 const styles = StyleSheet.create({
+  manualIntro: { gap: spacing.xs },
+  notesInput: { minHeight: 76, textAlignVertical: 'top' },
   root: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -355,11 +492,11 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderSubtle,
   },
   field: {
-    marginBottom: spacing.sm,
+    marginBottom: 0,
   },
   details: {
     marginTop: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.lg,
   },
   manualLink: {
     paddingVertical: spacing.md,

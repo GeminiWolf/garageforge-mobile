@@ -1,4 +1,4 @@
-import {getDefaultSettings} from '../config';
+import { getDefaultSettings } from '../config';
 import type {
   AppSettings,
   GaragePersistState,
@@ -15,7 +15,9 @@ function asString(value: unknown): string | undefined {
 }
 
 function asFiniteNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 export function normalizeVehicle(raw: unknown): Vehicle | null {
@@ -84,9 +86,18 @@ export function normalizeTrackedPart(raw: unknown): TrackedPart | null {
     status,
     estimatedCost,
   };
+  if (typeof raw.estimateProvided === 'boolean') {
+    part.estimateProvided = raw.estimateProvided;
+  }
   const actualCost = asFiniteNumber(raw.actualCost);
   if (actualCost != null) {
     part.actualCost = actualCost;
+  }
+  for (const key of ['committedAt', 'paidAt'] as const) {
+    const value = asString(raw[key]);
+    if (value && Number.isFinite(Date.parse(value))) {
+      part[key] = value;
+    }
   }
   const notes = asString(raw.notes);
   if (notes) {
@@ -120,7 +131,8 @@ export function normalizeSettings(raw: unknown): AppSettings {
       typeof raw.budgetRollover === 'boolean'
         ? raw.budgetRollover
         : defaults.budgetRollover,
-    budgetCarryOver: asFiniteNumber(raw.budgetCarryOver) ?? defaults.budgetCarryOver,
+    budgetCarryOver:
+      asFiniteNumber(raw.budgetCarryOver) ?? defaults.budgetCarryOver,
     budgetPeriodKey: asString(raw.budgetPeriodKey) ?? defaults.budgetPeriodKey,
     budgetPeriodCommittedBaseline:
       asFiniteNumber(raw.budgetPeriodCommittedBaseline) ??

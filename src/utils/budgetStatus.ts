@@ -6,6 +6,10 @@ const COMMITTED_STATUSES: PartStatus[] = ['ordered', 'installed'];
 
 export type BudgetOverview = {
   totalNeeded: number;
+  spent: number;
+  committed: number;
+  used: number;
+  undatedCount: number;
   monthlyCap: number;
   overBy: number;
   remaining: number;
@@ -56,6 +60,7 @@ export function getBudgetPeriodSyncPatch(
   >,
   committedSpend: number,
   now: Date = new Date(),
+  previousPeriodUsed?: number,
 ): Partial<AppSettings> | null {
   const currentKey = getBudgetPeriodKey(now);
   if (settings.budgetPeriodKey === currentKey) {
@@ -68,7 +73,8 @@ export function getBudgetPeriodSyncPatch(
   const baseline = Number.isFinite(settings.budgetPeriodCommittedBaseline)
     ? Math.max(0, settings.budgetPeriodCommittedBaseline)
     : 0;
-  const spendThisPeriod = Math.max(0, safeCommitted - baseline);
+  const spendThisPeriod =
+    previousPeriodUsed ?? Math.max(0, safeCommitted - baseline);
   const previousAvailable = getEffectiveMonthlyCap(settings);
   const unused = Math.max(0, previousAvailable - spendThisPeriod);
 
@@ -80,6 +86,7 @@ export function getBudgetPeriodSyncPatch(
 }
 
 export function getBudgetOverview(input: {
+  now?: Date;
   parts: TrackedPart[];
   settings: Pick<
     AppSettings,
@@ -91,13 +98,44 @@ export function getBudgetOverview(input: {
 }): BudgetOverview {
   const totalNeeded = sumEstimatedCost(getBudgetParts(input.parts));
   const monthlyCap = getEffectiveMonthlyCap(input.settings);
-  const overBy = totalNeeded - monthlyCap;
-  const remaining = monthlyCap - totalNeeded;
+  const period = getBudgetPeriodKey(input.now);
+  const inPeriod = (date?: string) =>
+    date != null &&
+    Number.isFinite(Date.parse(date)) &&
+    getBudgetPeriodKey(new Date(date)) === period;
+  const spent = input.parts.reduce(
+    (sum, part) => sum + (inPeriod(part.paidAt) ? part.actualCost ?? 0 : 0),
+    0,
+  );
+  const committed = input.parts.reduce(
+    (sum, part) =>
+      sum +
+      (COMMITTED_STATUSES.includes(part.status) &&
+      part.actualCost == null &&
+      inPeriod(part.committedAt)
+        ? part.estimatedCost
+        : 0),
+    0,
+  );
+  const undatedCount = input.parts.filter(
+    part =>
+      (part.actualCost != null && !part.paidAt) ||
+      (COMMITTED_STATUSES.includes(part.status) &&
+        part.actualCost == null &&
+        !part.committedAt),
+  ).length;
+  const used = spent + committed;
+  const overBy = used - monthlyCap;
+  const remaining = monthlyCap - used;
   const usagePercent =
-    monthlyCap > 0 ? (totalNeeded / monthlyCap) * 100 : totalNeeded > 0 ? 100 : 0;
+    monthlyCap > 0 ? (used / monthlyCap) * 100 : used > 0 ? 100 : 0;
 
   return {
     totalNeeded,
+    spent,
+    committed,
+    used,
+    undatedCount,
     monthlyCap,
     overBy,
     remaining,

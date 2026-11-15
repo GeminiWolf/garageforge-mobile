@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { version } from '../../../package.json';
@@ -64,6 +59,7 @@ export function SettingsScreen() {
   const updateSettings = useGarageStore(s => s.updateSettings);
   const clearGarage = useGarageStore(s => s.clearGarage);
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [openRegionSheet, setOpenRegionSheet] = useState(false);
   const [openUnitsSheet, setOpenUnitsSheet] = useState(false);
   const [openCurrencySheet, setOpenCurrencySheet] = useState(false);
@@ -161,18 +157,25 @@ export function SettingsScreen() {
           </List.View>
         </View>
 
-        <View style={!__DEV__ && styles.hidden}>
-          <Text size="sm" tone="muted" style={styles.section}>
-            Developer
-          </Text>
-          <List.View>
-            <List.Item
-              label="API"
-              description={settings.apiBaseUrl}
-              onPress={() => navigation.navigate('ApiConnection')}
-            />
-          </List.View>
-        </View>
+        {__DEV__ ? (
+          <View>
+            <List.View>
+              <List.Item
+                label="Advanced"
+                description="Catalogue connection and developer settings"
+                value={showAdvanced ? 'Hide' : undefined}
+                onPress={() => setShowAdvanced(value => !value)}
+              />
+              {showAdvanced ? (
+                <List.Item
+                  label="Catalogue connection"
+                  description="Check availability or configure the server"
+                  onPress={() => navigation.navigate('ApiConnection')}
+                />
+              ) : null}
+            </List.View>
+          </View>
+        ) : null}
 
         <Button
           label="Clear garage"

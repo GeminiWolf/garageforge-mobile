@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { CurrencyCode, TrackedPart } from '../../types';
+import { hasPartEstimate } from '../../utils/partEstimate';
 import { formatMoney } from '../../utils/formatMoney';
 import { colors, layout, spacing, tabularNums } from '../../theme';
 import { Checkbox } from '../common/Checkbox';
@@ -23,9 +24,20 @@ export function TrackedPartRow({
   checked = false,
   onCheckedChange,
 }: Props) {
-  const cost = formatMoney(part.estimatedCost, currency);
+  const cost = hasPartEstimate(part)
+    ? formatMoney(part.estimatedCost, currency)
+    : 'Not estimated';
   const installed = part.status === 'installed';
-  const meta = [part.priority === 'urgent' ? 'Urgent' : null, part.status]
+  const statusLabel = {
+    needed: 'To source',
+    sourcing: 'Sourcing',
+    ordered: 'Awaiting delivery',
+    installed: 'Installed',
+  }[part.status];
+  const meta = [
+    part.priority === 'urgent' && !installed ? 'Urgent' : null,
+    statusLabel,
+  ]
     .filter(Boolean)
     .join(' · ');
 
@@ -33,7 +45,7 @@ export function TrackedPartRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${part.name}, part number ${part.partNumber}, ${part.priority} priority, ${part.status}, estimated ${cost}`}
+      accessibilityLabel={`${part.name}, part number $Part no. {part.partNumber}, ${part.priority} priority, ${part.status}, estimated ${cost}`}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       {checkbox ? (
@@ -53,14 +65,22 @@ export function TrackedPartRow({
         >
           {part.name}
         </Text>
-        <Text size="sm" tone="dim" transform="capitalize">
+        <Text
+          variant="caption"
+          tone={part.priority === 'urgent' && !installed ? 'danger' : 'muted'}
+        >
           {meta}
         </Text>
+        {part.partNumber ? (
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            Part no. {part.partNumber}
+          </Text>
+        ) : null}
       </View>
       <Text
         size="sm"
         tone={installed ? 'dim' : 'muted'}
-        style={tabularNums}
+        style={[tabularNums, styles.cost]}
       >
         {cost}
       </Text>
@@ -73,7 +93,7 @@ const styles = StyleSheet.create({
     minHeight: layout.rowMinHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     borderBottomWidth: layout.hairline,
     borderBottomColor: colors.borderSubtle,
   },
@@ -83,6 +103,7 @@ const styles = StyleSheet.create({
   checkbox: {
     marginRight: spacing.md,
   },
+  cost: { maxWidth: 110, textAlign: 'right' },
   body: {
     flex: 1,
     marginRight: spacing.sm,

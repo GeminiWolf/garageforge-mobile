@@ -6,6 +6,7 @@ import {
   type StyleProp,
   type TextInputProps as RNTextInputProps,
   type ViewStyle,
+  type TextStyle,
 } from 'react-native';
 import { colors, fontFamily, spacing } from '../../theme';
 import { Text } from './Text';
@@ -15,6 +16,8 @@ type Radius = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 type Size = 'sm' | 'md' | 'lg';
 
 type Props = Omit<RNTextInputProps, 'style'> & {
+  inputRef?: React.Ref<RNTextInput>;
+  appearance?: 'underline' | 'outlined';
   label?: string;
   helper?: string;
   error?: string;
@@ -24,19 +27,21 @@ type Props = Omit<RNTextInputProps, 'style'> & {
   padding?: Padding | number;
   radius?: Radius;
   containerStyle?: StyleProp<ViewStyle>;
-  inputStyle?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
 };
 
 const SIZE_STYLES: Record<
   Size,
-  {minHeight: number; fontSize: number; padding: Padding}
+  { minHeight: number; fontSize: number; padding: Padding }
 > = {
-  sm: {minHeight: 36, fontSize: 12, padding: 'sm'},
-  md: {minHeight: 48, fontSize: 14, padding: 'md'},
-  lg: {minHeight: 56, fontSize: 16, padding: 'lg'},
+  sm: { minHeight: 36, fontSize: 12, padding: 'sm' },
+  md: { minHeight: 48, fontSize: 14, padding: 'md' },
+  lg: { minHeight: 56, fontSize: 16, padding: 'lg' },
 };
 
 export function Input({
+  inputRef,
+  appearance = 'underline',
   label,
   helper,
   error,
@@ -69,18 +74,24 @@ export function Input({
         style={[
           styles.field,
           {
-            paddingHorizontal: 0,
             minHeight: sizeStyle.minHeight,
           },
+          appearance === 'outlined' && styles.fieldOutlined,
           focused && styles.fieldFocused,
+          focused && appearance === 'outlined' && styles.outlinedFocused,
           hasError && styles.fieldError,
+          hasError && appearance === 'outlined' && styles.outlinedError,
           !editable && styles.fieldDisabled,
         ]}
       >
         {leftSection != null ? (
           <View style={styles.section}>
             {typeof leftSection === 'string' ? (
-              <Text tone="slate" weight="semibold" size={size === 'lg' ? 'md' : size}>
+              <Text
+                tone="slate"
+                weight="semibold"
+                size={size === 'lg' ? 'md' : size}
+              >
                 {leftSection}
               </Text>
             ) : (
@@ -91,7 +102,9 @@ export function Input({
 
         <RNTextInput
           {...rest}
+          ref={inputRef}
           editable={editable}
+          accessibilityLabel={rest.accessibilityLabel ?? label}
           placeholderTextColor={placeholderTextColor}
           onFocus={event => {
             setFocused(true);
@@ -114,7 +127,11 @@ export function Input({
         {rightSection != null ? (
           <View style={styles.section}>
             {typeof rightSection === 'string' ? (
-              <Text tone="muted" weight="semibold" size={size === 'lg' ? 'md' : size}>
+              <Text
+                tone="muted"
+                weight="semibold"
+                size={size === 'lg' ? 'md' : size}
+              >
                 {rightSection}
               </Text>
             ) : (
@@ -141,13 +158,24 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: spacing.sm,
   },
+  outlinedFocused: { borderColor: colors.accent },
+  outlinedError: { borderColor: colors.danger },
   field: {
+    paddingHorizontal: 0,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'transparent',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     gap: spacing.sm,
+  },
+  fieldOutlined: {
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
   },
   fieldFocused: {
     borderBottomColor: colors.accent,

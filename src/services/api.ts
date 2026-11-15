@@ -110,16 +110,24 @@ async function request<T>(
   baseUrl: string,
   path: string,
   init?: RequestInit,
+  timeoutMs?: number,
 ): Promise<T> {
   const url = `${baseUrl.replace(/\/$/, '')}${path}`;
   let response: Response;
+  const controller = timeoutMs ? new AbortController() : undefined;
+  const timeout = controller
+    ? setTimeout(() => controller.abort(), timeoutMs)
+    : undefined;
   try {
     response = await fetch(url, {
       ...init,
       headers: buildRequestHeaders(init),
+      ...(controller ? { signal: controller.signal } : {}),
     });
   } catch {
     throw new ApiError('Unable to reach API. Check the base URL and network.');
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 
   if (!response.ok) {
@@ -183,15 +191,6 @@ export async function getVariants(
   modelId: string,
   year: string,
 ): Promise<VariantOption[]> {
-  console.log(
-    'getVariants',
-    baseUrl,
-    modelId,
-    year,
-    `/api/${API_VERSION}/vehicles/models/${modelId}/variants?year=${encodeURIComponent(
-      year,
-    )}`,
-  );
   const rows = await request<VehicleVariant[]>(
     baseUrl,
     `/api/${API_VERSION}/vehicles/models/${modelId}/variants?year=${encodeURIComponent(
@@ -207,7 +206,12 @@ export async function getCategories(
 ): Promise<PartCategoryOption[]> {
   const qs =
     parentId != null ? `?parent_id=${encodeURIComponent(parentId)}` : '';
-  const rows = await request<PartCategory[]>(baseUrl, `/categories${qs}`);
+  const rows = await request<PartCategory[]>(
+    baseUrl,
+    `/categories${qs}`,
+    undefined,
+    10000,
+  );
   return rows.map(mapCategory);
 }
 
@@ -240,7 +244,7 @@ export async function probeApiHealth(
     if (!response.ok) {
       return false;
     }
-    const result = (await response.json()) as {ok?: boolean};
+    const result = (await response.json()) as { ok?: boolean };
     return result.ok === true;
   } catch {
     return false;

@@ -24,6 +24,7 @@ import { colors, fontFamily } from '../theme';
 import Header from './components/Header';
 import { StackHeader } from './components/AppHeader';
 import { AddPartHeaderRight } from './components/AddPartHeaderRight';
+import { AddPartTitle } from './components/AddPartTitle';
 import { PartHeaderTitle } from './components/PartHeaderTitle';
 import { VehicleHeaderTitle } from './components/VehicleHeaderTitle';
 
@@ -39,6 +40,18 @@ function vehicleHeaderOptions(
     headerRight: () => (
       <AddPartHeaderRight navigation={navigation} vehicleId={vehicleId} />
     ),
+  };
+}
+
+function addPartHeaderOptions(vehicleId: string) {
+  return {
+    headerTitle: () => <AddPartTitle vehicleId={vehicleId} />,
+  };
+}
+
+function partDetailHeaderOptions(partId: string) {
+  return {
+    headerTitle: () => <PartHeaderTitle partId={partId} />,
   };
 }
 
@@ -149,18 +162,12 @@ export function RootNavigator() {
         <GarageStack.Screen
           name="AddPart"
           component={AddPartScreen}
-          options={{
-            title: 'Add part',
-          }}
+          options={({ route }) => addPartHeaderOptions(route.params.vehicleId)}
         />
         <GarageStack.Screen
           name="PartDetail"
           component={PartDetailScreen}
-          options={({ route }) => ({
-            headerTitle: () => (
-              <PartHeaderTitle partId={route.params.partId} />
-            ),
-          })}
+          options={({ route }) => partDetailHeaderOptions(route.params.partId)}
         />
         <GarageStack.Screen
           name="Export"
@@ -180,7 +187,7 @@ export function RootNavigator() {
         <GarageStack.Screen
           name="ApiConnection"
           component={ApiConnectionScreen}
-          options={{ title: 'API' }}
+          options={{ title: 'Catalogue connection' }}
         />
       </GarageStack.Navigator>
     </NavigationContainer>

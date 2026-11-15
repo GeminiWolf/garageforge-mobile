@@ -1,4 +1,5 @@
-import type {PartPriority, PartStatus, TrackedPart} from '../types';
+import { hasPartEstimate } from './partEstimate';
+import type { PartPriority, PartStatus, TrackedPart } from '../types';
 
 export type VehicleHealth = {
   neededCount: number;
@@ -23,7 +24,7 @@ export function getVehicleHealth(parts: TrackedPart[]): VehicleHealth {
       urgentCount: 0,
       sourcingCount: 0,
       orderedCount: 0,
-      summary: 'All clear',
+      summary: parts.length === 0 ? 'No parts added' : 'All parts installed',
     };
   }
 
@@ -61,6 +62,9 @@ export function prioritizeParts(parts: TrackedPart[]): TrackedPart[] {
     const byPriority = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
     if (byPriority !== 0) {
       return byPriority;
+    }
+    if (hasPartEstimate(a) !== hasPartEstimate(b)) {
+      return hasPartEstimate(a) ? -1 : 1;
     }
     return a.estimatedCost - b.estimatedCost;
   });

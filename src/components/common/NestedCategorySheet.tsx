@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -21,6 +22,7 @@ type Props = {
   baseUrl: string;
   selectedId?: string | null;
   onClose: () => void;
+  onManualEntry?: () => void;
   onSelect: (category: PartCategoryOption, path: PartCategoryOption[]) => void;
 };
 
@@ -29,6 +31,7 @@ export function NestedCategorySheet({
   baseUrl,
   selectedId,
   onClose,
+  onManualEntry,
   onSelect,
 }: Props) {
   const [path, setPath] = useState<PartCategoryOption[]>([]);
@@ -167,19 +170,32 @@ export function NestedCategorySheet({
         accessibilityLabel="Search categories"
       />
 
-      {error ? (
-        <View style={styles.errorRow}>
-          <Text style={styles.error}>{error}</Text>
+      {loading ? (
+        <View accessibilityLiveRegion="polite">
+          <AppText variant="caption" tone="muted">
+            Loading categories…
+          </AppText>
+          <SkeletonList />
+        </View>
+      ) : error ? (
+        <View style={styles.feedback} accessibilityLiveRegion="polite">
+          <AppText variant="subtitle">Catalogue unavailable</AppText>
+          <AppText variant="caption" tone="muted">
+            We couldn’t load categories. Try again or enter the part yourself.
+          </AppText>
+          {onManualEntry ? (
+            <Button
+              label="Enter part manually"
+              variant="ghost"
+              onPress={onManualEntry}
+            />
+          ) : null}
           <Button
             label="Retry"
             variant="ghost"
-            size="sm"
             onPress={() => setReloadKey(key => key + 1)}
           />
         </View>
-      ) : null}
-      {loading ? (
-        <SkeletonList />
       ) : (
         <FlatList
           data={filtered}
@@ -187,7 +203,41 @@ export function NestedCategorySheet({
           keyboardShouldPersistTaps="handled"
           style={styles.list}
           ListEmptyComponent={
-            <Text style={styles.empty}>No categories here</Text>
+            <View style={styles.feedback}>
+              <AppText variant="subtitle">
+                {query.trim()
+                  ? 'No matching categories'
+                  : 'No categories available'}
+              </AppText>
+              <AppText variant="caption" tone="muted">
+                {query.trim()
+                  ? 'Try another search or enter the part yourself.'
+                  : 'You can still add a part manually.'}
+              </AppText>
+              {query.trim() ? (
+                <Button
+                  label="Clear search"
+                  variant="ghost"
+                  onPress={() => {
+                    setQuery('');
+                    Keyboard.dismiss();
+                  }}
+                />
+              ) : (
+                <Button
+                  label="Retry"
+                  variant="ghost"
+                  onPress={() => setReloadKey(key => key + 1)}
+                />
+              )}
+              {onManualEntry ? (
+                <Button
+                  label="Enter part manually"
+                  variant="ghost"
+                  onPress={onManualEntry}
+                />
+              ) : null}
+            </View>
           }
           renderItem={({ item }) => {
             const selected = item.id === selectedId;
@@ -212,11 +262,19 @@ export function NestedCategorySheet({
           }}
         />
       )}
+      {onManualEntry && !error && (loading || filtered.length > 0) ? (
+        <Button
+          label="Enter part manually"
+          variant="ghost"
+          onPress={onManualEntry}
+        />
+      ) : null}
     </SheetFrame>
   );
 }
 
 const styles = StyleSheet.create({
+  feedback: { paddingVertical: spacing.xl, gap: spacing.md },
   back: {
     minHeight: 44,
     justifyContent: 'center',

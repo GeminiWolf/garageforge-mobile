@@ -14,8 +14,8 @@ type ProbeState = 'idle' | 'checking' | 'ok' | 'fail';
 const PROBE_LABEL: Record<ProbeState, string> = {
   idle: 'Not checked',
   checking: 'Checking…',
-  ok: 'Reachable',
-  fail: 'Unreachable',
+  ok: 'Connected',
+  fail: 'Unavailable',
 };
 
 const API_SHEET_OPTIONS = Object.values(BASE_URL_OBJ).map(url => ({
@@ -75,7 +75,7 @@ export default function ApiConnectionScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.statusRow}>
-          <Text tone="muted">Status</Text>
+          <Text tone="muted">Catalogue connection</Text>
           {probe === 'checking' ? (
             <ActivityIndicator size="small" color={colors.accent} />
           ) : (

@@ -21,13 +21,16 @@ export type TrackedPart = {
   priority: PartPriority;
   status: PartStatus;
   estimatedCost: number;
+  estimateProvided?: boolean;
   actualCost?: number;
+  committedAt?: string;
+  paidAt?: string;
   notes?: string;
   source?: string;
 };
 
-export type NewVehicle = Omit<Vehicle, 'id'> & {id?: string};
-export type NewTrackedPart = Omit<TrackedPart, 'id'> & {id?: string};
+export type NewVehicle = Omit<Vehicle, 'id'> & { id?: string };
+export type NewTrackedPart = Omit<TrackedPart, 'id'> & { id?: string };
 export type TrackedPartPatch = Partial<Omit<TrackedPart, 'id' | 'vehicleId'>>;
 
 export type AppSettings = {

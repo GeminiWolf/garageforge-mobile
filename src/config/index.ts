@@ -28,7 +28,7 @@ export function getDefaultSettings(): AppSettings {
   return {
     currency: 'ZAR',
     units: 'metric',
-    monthlyBudget: 20000,
+    monthlyBudget: 0,
     budgetRollover: false,
     budgetCarryOver: 0,
     budgetPeriodKey: getBudgetPeriodKey(),

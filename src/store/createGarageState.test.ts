@@ -1,7 +1,7 @@
-import {create} from 'zustand';
-import {createGarageState} from './createGarageState';
-import type {GarageState} from './types';
-import type {NewTrackedPart, NewVehicle} from '../types/garage';
+import { create } from 'zustand';
+import { createGarageState } from './createGarageState';
+import type { GarageState } from './types';
+import type { NewTrackedPart, NewVehicle } from '../types/garage';
 
 jest.mock('../services/api', () => ({
   setApiBearerToken: jest.fn(),
@@ -86,7 +86,7 @@ describe('createGarageState', () => {
   it('clears vehicles and parts and leaves settings', () => {
     const store = createTestStore();
     store.getState().addVehicle(vehicle);
-    store.getState().updateSettings({currency: 'EUR'});
+    store.getState().updateSettings({ currency: 'EUR' });
 
     store.getState().clearGarage();
 
@@ -94,4 +94,22 @@ describe('createGarageState', () => {
     expect(store.getState().trackedParts).toEqual([]);
     expect(store.getState().settings.currency).toBe('EUR');
   });
+});
+
+it('preserves commitment and payment dates through status transitions', () => {
+  const store = createTestStore();
+  const vehicleId = store.getState().addVehicle(vehicle);
+  const id = store.getState().addTrackedPart(partFor(vehicleId));
+  store.getState().updateTrackedPart(id, { status: 'ordered' });
+  const committedAt = store.getState().trackedParts[0].committedAt;
+  expect(committedAt).toBeDefined();
+  store
+    .getState()
+    .updateTrackedPart(id, { status: 'installed', actualCost: 300 });
+  expect(store.getState().trackedParts[0].committedAt).toBe(committedAt);
+  expect(store.getState().trackedParts[0].paidAt).toBeDefined();
+  store.getState().updateTrackedPart(id, { paidAt: '2026-09-01T12:00:00' });
+  expect(store.getState().trackedParts[0].paidAt).toBe('2026-09-01T12:00:00');
+  store.getState().updateTrackedPart(id, { actualCost: undefined });
+  expect(store.getState().trackedParts[0].paidAt).toBeUndefined();
 });

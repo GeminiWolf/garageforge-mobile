@@ -1,17 +1,18 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {Alert, StyleSheet, View} from 'react-native';
-import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {Button} from '../../components/common/Button';
-import {Chip} from '../../components/common/Chip';
-import {EmptyState} from '../../components/common/EmptyState';
-import {Input} from '../../components/common/Input';
-import {Screen} from '../../components/common/Screen';
-import {SectionHeader} from '../../components/common/SectionHeader';
-import {Text} from '../../components/common/Text';
-import type {GarageStackParamList} from '../../navigation/types';
-import {useGarageStore} from '../../store/garageStore';
-import type {PartPriority, PartStatus} from '../../types';
-import {spacing} from '../../theme';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Button } from '../../components/common/Button';
+import { Chip } from '../../components/common/Chip';
+import { EmptyState } from '../../components/common/EmptyState';
+import { Input } from '../../components/common/Input';
+import { Screen } from '../../components/common/Screen';
+import { SectionHeader } from '../../components/common/SectionHeader';
+import { Text } from '../../components/common/Text';
+import type { GarageStackParamList } from '../../navigation/types';
+import { useGarageStore } from '../../store/garageStore';
+import type { PartPriority, PartStatus } from '../../types';
+import { hasPartEstimate } from '../../utils/partEstimate';
+import { spacing } from '../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<GarageStackParamList, 'PartDetail'>;
@@ -26,12 +27,13 @@ type PartDraft = {
   estimatedCost: string;
   actualCost: string;
   source: string;
+  paidDate: string;
   notes: string;
 };
 
-export function PartDetailScreen({navigation, route}: Props) {
+export function PartDetailScreen({ navigation, route }: Props) {
   const { bottom } = useSafeAreaInsets();
-  const {partId} = route.params;
+  const { partId } = route.params;
   const part = useGarageStore(s => s.trackedParts.find(p => p.id === partId));
   const updateTrackedPart = useGarageStore(s => s.updateTrackedPart);
   const removeTrackedPart = useGarageStore(s => s.removeTrackedPart);
@@ -42,26 +44,32 @@ export function PartDetailScreen({navigation, route}: Props) {
     estimatedCost: '',
     actualCost: '',
     source: '',
+    paidDate: '',
     notes: '',
   });
   const [savedVisible, setSavedVisible] = useState(false);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDraft = useRef<PartDraft | null>(null);
+  const flushPending = useRef<() => void>(() => {});
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const loadedPartId = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!part) {
+    if (!part || loadedPartId.current === partId) {
       return;
     }
+    loadedPartId.current = partId;
     setDraft({
       name: part.name,
       partNumber: part.partNumber,
-      estimatedCost:
-        part.estimatedCost != null ? String(part.estimatedCost) : '',
+      estimatedCost: hasPartEstimate(part) ? String(part.estimatedCost) : '',
       actualCost: part.actualCost != null ? String(part.actualCost) : '',
       source: part.source || '',
+      paidDate: part.paidAt?.slice(0, 10) ?? '',
       notes: part.notes || '',
     });
-  }, [partId]);
+  }, [part, partId]);
 
   useEffect(() => {
     return () => {
@@ -71,6 +79,7 @@ export function PartDetailScreen({navigation, route}: Props) {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+      flushPending.current();
     };
   }, []);
 
@@ -82,7 +91,7 @@ export function PartDetailScreen({navigation, route}: Props) {
     savedTimerRef.current = setTimeout(() => setSavedVisible(false), 1500);
   };
 
-  const persistDraft = (next: PartDraft) => {
+  const persistDraft = (next: PartDraft, showSaved = true) => {
     if (!part) {
       return;
     }
@@ -90,21 +99,40 @@ export function PartDetailScreen({navigation, route}: Props) {
       name: next.name.trim() || part.name,
       partNumber: next.partNumber.trim() || part.partNumber,
       estimatedCost: Number(next.estimatedCost) || 0,
+      estimateProvided: next.estimatedCost.trim() !== '',
       actualCost:
         next.actualCost.trim() === ''
           ? undefined
           : Number(next.actualCost) || 0,
+      ...(next.actualCost.trim() &&
+      /^\d{4}-\d{2}-\d{2}$/.test(next.paidDate) &&
+      Number.isFinite(Date.parse(next.paidDate))
+        ? { paidAt: `${next.paidDate}T12:00:00` }
+        : {}),
       source: next.source.trim() || undefined,
       notes: next.notes.trim() || undefined,
     });
-    flashSaved();
+    if (showSaved) {
+      flashSaved();
+    }
+  };
+
+  flushPending.current = () => {
+    if (pendingDraft.current) {
+      persistDraft(pendingDraft.current, false);
+      pendingDraft.current = null;
+    }
   };
 
   const queueDraftSave = (next: PartDraft) => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
-    debounceRef.current = setTimeout(() => persistDraft(next), SAVE_DEBOUNCE_MS);
+    pendingDraft.current = next;
+    debounceRef.current = setTimeout(() => {
+      pendingDraft.current = null;
+      persistDraft(next);
+    }, SAVE_DEBOUNCE_MS);
   };
 
   const updateDraftField = <K extends keyof PartDraft>(
@@ -112,7 +140,7 @@ export function PartDetailScreen({navigation, route}: Props) {
     value: PartDraft[K],
   ) => {
     setDraft(prev => {
-      const next = {...prev, [key]: value};
+      const next = { ...prev, [key]: value };
       queueDraftSave(next);
       return next;
     });
@@ -161,7 +189,14 @@ export function PartDetailScreen({navigation, route}: Props) {
         {STATUSES.map(s => (
           <Chip
             key={s}
-            label={s}
+            label={
+              {
+                needed: 'To source',
+                sourcing: 'Sourcing',
+                ordered: 'Awaiting delivery',
+                installed: 'Installed',
+              }[s]
+            }
             selected={part.status === s}
             onPress={() => {
               updateTrackedPart(part.id, { status: s });
@@ -198,6 +233,14 @@ export function PartDetailScreen({navigation, route}: Props) {
         value={draft.actualCost}
         onChangeText={v => updateDraftField('actualCost', v)}
         keyboardType="decimal-pad"
+        containerStyle={styles.field}
+      />
+      <Input
+        label="Payment date"
+        value={draft.paidDate}
+        placeholder="YYYY-MM-DD"
+        helper="New actual costs use today unless you enter a date."
+        onChangeText={v => updateDraftField('paidDate', v)}
         containerStyle={styles.field}
       />
       <Input

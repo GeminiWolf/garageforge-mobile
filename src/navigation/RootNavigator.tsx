@@ -10,6 +10,7 @@ import type { GarageStackParamList, RootTabParamList } from './types';
 import {
   AboutScreen,
   AccountScreen,
+  WelcomeScreen,
   AddPartScreen,
   AddVehicleScreen,
   ApiConnectionScreen,
@@ -147,6 +148,11 @@ export function RootNavigator() {
           name="GarageHome"
           component={MainTabs}
           options={{ title: 'Garage', headerShown: false }}
+        />
+        <GarageStack.Screen
+          name="Welcome"
+          component={WelcomeScreen}
+          options={{ headerShown: false, presentation: 'fullScreenModal' }}
         />
         <GarageStack.Screen
           name="AddVehicle"

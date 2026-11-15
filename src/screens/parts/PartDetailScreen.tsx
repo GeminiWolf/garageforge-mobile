@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
 import { Chip } from '../../components/common/Chip';
@@ -7,12 +8,14 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { Input } from '../../components/common/Input';
 import { Screen } from '../../components/common/Screen';
 import { SectionHeader } from '../../components/common/SectionHeader';
+import { SheetFrame } from '../../components/common/SheetFrame';
 import { Text } from '../../components/common/Text';
 import type { GarageStackParamList } from '../../navigation/types';
 import { useGarageStore } from '../../store/garageStore';
 import type { PartPriority, PartStatus } from '../../types';
 import { hasPartEstimate } from '../../utils/partEstimate';
-import { spacing } from '../../theme';
+import { colors, spacing } from '../../theme';
+import { getCurrencySymbol } from '../../utils/formatMoney';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<GarageStackParamList, 'PartDetail'>;
@@ -20,6 +23,26 @@ type Props = NativeStackScreenProps<GarageStackParamList, 'PartDetail'>;
 const PRIORITIES: PartPriority[] = ['urgent', 'soon', 'someday'];
 const STATUSES: PartStatus[] = ['needed', 'sourcing', 'ordered', 'installed'];
 const SAVE_DEBOUNCE_MS = 500;
+
+const STATUS_LABELS: Record<PartStatus, string> = {
+  needed: 'To source',
+  sourcing: 'Sourcing',
+  ordered: 'Awaiting delivery',
+  installed: 'Installed',
+};
+
+const PRIORITY_LABELS: Record<PartPriority, string> = {
+  urgent: 'Urgent',
+  soon: 'Soon',
+  someday: 'Someday',
+};
+
+/** Local calendar date as YYYY-MM-DD. */
+export function toDateKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
 
 type PartDraft = {
   name: string;
@@ -48,6 +71,9 @@ export function PartDetailScreen({ navigation, route }: Props) {
     notes: '',
   });
   const [savedVisible, setSavedVisible] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const currency = useGarageStore(s => s.settings.currency);
+  const currencySymbol = getCurrencySymbol(currency);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDraft = useRef<PartDraft | null>(null);
   const flushPending = useRef<() => void>(() => {});
@@ -146,6 +172,15 @@ export function PartDetailScreen({ navigation, route }: Props) {
     });
   };
 
+  const paidDate = /^\d{4}-\d{2}-\d{2}$/.test(draft.paidDate)
+    ? new Date(`${draft.paidDate}T12:00:00`)
+    : new Date();
+  const paidLabel = paidDate.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
   if (!part) {
     return (
       <Screen>
@@ -171,32 +206,12 @@ export function PartDetailScreen({ navigation, route }: Props) {
         ) : null}
       </View>
 
-      <Input
-        label="Name"
-        value={draft.name}
-        onChangeText={v => updateDraftField('name', v)}
-        containerStyle={styles.field}
-      />
-      <Input
-        label="Part number"
-        value={draft.partNumber}
-        onChangeText={v => updateDraftField('partNumber', v)}
-        containerStyle={styles.field}
-      />
-
       <SectionHeader title="Status" />
       <View style={styles.chips}>
         {STATUSES.map(s => (
           <Chip
             key={s}
-            label={
-              {
-                needed: 'To source',
-                sourcing: 'Sourcing',
-                ordered: 'Awaiting delivery',
-                installed: 'Installed',
-              }[s]
-            }
+            label={STATUS_LABELS[s]}
             selected={part.status === s}
             onPress={() => {
               updateTrackedPart(part.id, { status: s });
@@ -211,7 +226,7 @@ export function PartDetailScreen({ navigation, route }: Props) {
         {PRIORITIES.map(p => (
           <Chip
             key={p}
-            label={p}
+            label={PRIORITY_LABELS[p]}
             selected={part.priority === p}
             onPress={() => {
               updateTrackedPart(part.id, { priority: p });
@@ -221,8 +236,10 @@ export function PartDetailScreen({ navigation, route }: Props) {
         ))}
       </View>
 
+      <SectionHeader title="Cost" />
       <Input
         label="Estimated cost"
+        leftSection={currencySymbol}
         value={draft.estimatedCost}
         onChangeText={v => updateDraftField('estimatedCost', v)}
         keyboardType="decimal-pad"
@@ -230,31 +247,94 @@ export function PartDetailScreen({ navigation, route }: Props) {
       />
       <Input
         label="Actual cost"
+        leftSection={currencySymbol}
+        placeholder="Add when you’ve paid"
         value={draft.actualCost}
         onChangeText={v => updateDraftField('actualCost', v)}
         keyboardType="decimal-pad"
         containerStyle={styles.field}
       />
+      {draft.actualCost.trim() !== '' ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Paid on ${paidLabel}. Change date`}
+          onPress={() => setDatePickerOpen(true)}
+          style={({ pressed }) => [styles.dateRow, pressed && styles.pressed]}
+        >
+          <View>
+            <Text variant="caption" tone="muted">
+              Paid on
+            </Text>
+            <Text>{paidLabel}</Text>
+          </View>
+          <Text weight="medium" tone="accent">
+            Change
+          </Text>
+        </Pressable>
+      ) : null}
+
+      <SectionHeader title="Details" />
       <Input
-        label="Payment date"
-        value={draft.paidDate}
-        placeholder="YYYY-MM-DD"
-        helper="New actual costs use today unless you enter a date."
-        onChangeText={v => updateDraftField('paidDate', v)}
+        label="Name"
+        value={draft.name}
+        onChangeText={v => updateDraftField('name', v)}
         containerStyle={styles.field}
       />
       <Input
-        label="Source"
+        label="Part number"
+        placeholder="Optional"
+        value={draft.partNumber}
+        onChangeText={v => updateDraftField('partNumber', v)}
+        containerStyle={styles.field}
+      />
+      <Input
+        label="Where to buy"
+        placeholder="Optional: shop or link"
         value={draft.source}
         onChangeText={v => updateDraftField('source', v)}
         containerStyle={styles.field}
       />
       <Input
         label="Notes"
+        placeholder="Optional"
         value={draft.notes}
         onChangeText={v => updateDraftField('notes', v)}
         containerStyle={styles.field}
       />
+
+      {datePickerOpen && Platform.OS === 'android' ? (
+        <DateTimePicker
+          value={paidDate}
+          mode="date"
+          maximumDate={new Date()}
+          onChange={(event, date) => {
+            setDatePickerOpen(false);
+            if (event.type === 'set' && date) {
+              updateDraftField('paidDate', toDateKey(date));
+            }
+          }}
+        />
+      ) : null}
+      <SheetFrame
+        visible={datePickerOpen && Platform.OS === 'ios'}
+        title="Paid on"
+        compact
+        onClose={() => setDatePickerOpen(false)}
+      >
+        <DateTimePicker
+          value={paidDate}
+          mode="date"
+          display="inline"
+          maximumDate={new Date()}
+          themeVariant="dark"
+          onChange={(_event, date) => {
+            if (date) {
+              updateDraftField('paidDate', toDateKey(date));
+            }
+          }}
+        />
+        <Button label="Done" onPress={() => setDatePickerOpen(false)} />
+      </SheetFrame>
 
       <Button
         label="Remove from this build"
@@ -292,5 +372,18 @@ const styles = StyleSheet.create({
   },
   field: {
     marginBottom: spacing.sm,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });

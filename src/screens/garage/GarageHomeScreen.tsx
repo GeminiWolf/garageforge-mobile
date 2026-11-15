@@ -16,7 +16,8 @@ import type {
 import { useGarageStore } from '../../store/garageStore';
 import { confirmRemoveVehicle } from '../../utils/confirmRemoveVehicle';
 import { formatVehicleName } from '../../utils/formatVehicleName';
-import { formatRelativeTime } from '../../utils/formatRelativeTime';
+import { describeSyncLine } from '../../utils/syncLine';
+import { syncNow, useSyncStatus } from '../../services/accountController';
 import { colors, layout, radius, spacing } from '../../theme';
 import {
   dismissBackupHint,
@@ -41,6 +42,8 @@ export function GarageHomeScreen({ navigation }: Props) {
   const removeVehicle = useGarageStore(s => s.removeVehicle);
   const signedIn = useGarageStore(s => s.account !== null);
   const lastSyncedAt = useGarageStore(s => s.sync.lastSyncedAt);
+  const syncState = useSyncStatus(s => s.state);
+  const syncLine = describeSyncLine(syncState, lastSyncedAt);
   const [showBackupHint, setShowBackupHint] = useState(false);
 
   // First launch: introduce the app once, before the first car is added.
@@ -145,10 +148,29 @@ export function GarageHomeScreen({ navigation }: Props) {
               <Text size="md" tone="muted">
                 {vehicles.length}{' '}
                 {vehicles.length === 1 ? 'vehicle' : 'vehicles'}
-                {signedIn && lastSyncedAt
-                  ? ` · synced ${formatRelativeTime(lastSyncedAt)}`
-                  : ''}
+                {signedIn && !syncLine.problem ? ` · ${syncLine.text}` : ''}
               </Text>
+              {signedIn && syncLine.problem ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Garage ${syncLine.text}. Try again`}
+                  onPress={() => syncNow().catch(() => undefined)}
+                  hitSlop={spacing.sm}
+                  style={({ pressed }) => [
+                    styles.syncProblem,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.syncDot} />
+                  <Text size="md" style={styles.syncProblemText}>
+                    {syncLine.text.charAt(0).toUpperCase() +
+                      syncLine.text.slice(1)}
+                  </Text>
+                  <Text size="md" weight="semibold" tone="accent">
+                    Try again
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           }
           ItemSeparatorComponent={VehicleSeparator}
@@ -180,7 +202,25 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     marginTop: spacing.sm,
   },
-  intro: { paddingBottom: spacing.lg },
+  intro: { paddingBottom: spacing.lg, gap: spacing.sm },
+  syncProblem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.sm,
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: 18,
+    backgroundColor: colors.warningSoft,
+  },
+  syncDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.warning,
+  },
+  syncProblemText: { color: colors.warningText },
+  pressed: { opacity: 0.72 },
   container: {
     flex: 1,
   },

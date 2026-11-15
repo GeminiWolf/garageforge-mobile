@@ -209,11 +209,12 @@ export function SettingsScreen() {
 
         <View>
           <Text size="sm" tone="muted" style={styles.section}>
-            Catalogue
+            Region and units
           </Text>
           <List.View>
             <List.Item
               label="Region"
+              description="Which makes and models you can pick"
               value={regionLabel}
               onPress={() => setOpenRegionSheet(true)}
             />
@@ -227,10 +228,6 @@ export function SettingsScreen() {
               value={settings.currency}
               onPress={() => setOpenCurrencySheet(true)}
             />
-            <List.Item
-              label="Export a build"
-              onPress={() => navigation.navigate('Export')}
-            />
           </List.View>
         </View>
 
@@ -241,13 +238,28 @@ export function SettingsScreen() {
           <List.View>
             <List.Item
               label="Monthly cap"
+              description="How much you plan to spend each month"
               value={monthlyBudgetLabel}
               onPress={openMonthlyBudgetSheet}
             />
             <List.Item
-              label="Alert when"
+              label="Warn me at"
+              description="Share of the cap that triggers a warning"
               value={spendingAlertLabel}
               onPress={() => setOpenSpendingAlertSheet(true)}
+            />
+          </List.View>
+        </View>
+
+        <View>
+          <Text size="sm" tone="muted" style={styles.section}>
+            Share
+          </Text>
+          <List.View>
+            <List.Item
+              label="Export a PDF"
+              description="A printable summary of a car and its parts"
+              onPress={() => navigation.navigate('Export')}
             />
           </List.View>
         </View>

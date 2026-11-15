@@ -1,5 +1,6 @@
 export { GarageHomeScreen } from './garage/GarageHomeScreen';
 export { AddVehicleScreen } from './garage/AddVehicleScreen';
+export { default as WelcomeScreen } from './garage/WelcomeScreen';
 export { CarDashboardScreen } from './garage/CarDashboardScreen';
 
 export { AddPartScreen } from './parts/AddPartScreen';

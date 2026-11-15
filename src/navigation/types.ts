@@ -16,6 +16,7 @@ export type GarageStackParamList = {
   About: undefined;
   Licenses: undefined;
   Account: undefined;
+  Welcome: undefined;
   ApiConnection: undefined;
 };
 

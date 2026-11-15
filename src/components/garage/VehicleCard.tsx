@@ -1,6 +1,6 @@
 import { hasPartEstimate } from '../../utils/partEstimate';
 import React from 'react';
-import { CarFront, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { Vehicle } from '../../types';
 import { getVehicleHealth } from '../../utils/healthSummary';
@@ -15,6 +15,8 @@ import {
   formatVehicleMeta,
 } from '../../utils/formatVehicleName';
 import { useGarageStore } from '../../store/garageStore';
+import { getCommittedSpend } from '../../utils/budgetStatus';
+import { makeBadge } from '../../utils/makeBadge';
 
 type Props = {
   vehicle: Vehicle;
@@ -34,6 +36,10 @@ export function VehicleCard({ vehicle, parts, onPress, onLongPress }: Props) {
     part => !hasPartEstimate(part),
   ).length;
   const totalEstimatedCost = sumEstimatedCost(getBudgetParts(parts));
+  const spentOrOrdered = getCommittedSpend(parts);
+  const showSpent =
+    budgetParts.length === 0 && spentOrOrdered > 0 && parts.length > 0;
+  const badge = makeBadge(vehicle.make);
 
   return (
     <Pressable
@@ -47,8 +53,13 @@ export function VehicleCard({ vehicle, parts, onPress, onLongPress }: Props) {
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <View style={styles.identity}>
-        <View style={styles.vehicleIcon}>
-          <CarFront size={30} color={colors.accent} strokeWidth={1.5} />
+        <View
+          style={[styles.vehicleIcon, { backgroundColor: badge.color }]}
+          accessible={false}
+        >
+          <Text variant="title" style={styles.initial}>
+            {badge.initial}
+          </Text>
         </View>
         <View style={styles.body}>
           <Text variant="subtitle">{formatVehicleTitle(vehicle)}</Text>
@@ -61,16 +72,20 @@ export function VehicleCard({ vehicle, parts, onPress, onLongPress }: Props) {
       <View style={styles.divider} />
       <View style={styles.details}>
         <View style={styles.body}>
-          <Text
-            variant="caption"
-            tone={health.urgentCount ? 'danger' : 'muted'}
-          >
-            {health.urgentCount ? `${health.urgentCount} urgent · ` : ''}
-            {parts.length ? `${openParts.length} open parts` : 'No parts added'}
-          </Text>
+          <View style={styles.statusRow}>
+            {health.urgentCount ? <View style={styles.urgentDot} /> : null}
+            <Text variant="caption" tone="muted">
+              {health.urgentCount ? `${health.urgentCount} urgent · ` : ''}
+              {parts.length
+                ? `${openParts.length} ${
+                    openParts.length === 1 ? 'part' : 'parts'
+                  } to go`
+                : 'No parts added'}
+            </Text>
+          </View>
           <Text variant="caption" tone="muted">
             {parts.length === 0
-              ? 'Add parts to start tracking this build'
+              ? 'Add the parts this car needs'
               : health.orderedCount
               ? `${health.orderedCount} awaiting delivery`
               : openParts.length
@@ -80,10 +95,16 @@ export function VehicleCard({ vehicle, parts, onPress, onLongPress }: Props) {
         </View>
         <View style={styles.cost}>
           <Text variant="label" tone="muted">
-            {missingEstimates ? 'Known estimates' : 'To source'}
+            {showSpent
+              ? 'Spent or ordered'
+              : missingEstimates
+              ? 'Known estimates'
+              : 'Still to buy'}
           </Text>
           <Text variant="subtitle" style={tabularNums}>
-            {budgetParts.length && missingEstimates === budgetParts.length
+            {showSpent
+              ? formatMoney(spentOrOrdered, currency)
+              : budgetParts.length && missingEstimates === budgetParts.length
               ? 'Not estimated'
               : formatMoney(totalEstimatedCost, currency)}
           </Text>
@@ -107,9 +128,16 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 12,
-    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  initial: { color: '#FFFFFF' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  urgentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
   },
   divider: { height: layout.hairline, backgroundColor: colors.border },
   details: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

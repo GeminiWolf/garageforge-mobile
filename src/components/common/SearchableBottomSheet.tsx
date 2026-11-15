@@ -114,7 +114,11 @@ export function SearchableBottomSheet({
           keyExtractor={item => item.key}
           keyboardShouldPersistTaps="handled"
           style={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>{emptyLabel}</Text>}
+          ListEmptyComponent={
+            <Text style={styles.empty}>
+              {query.trim() ? `No matches for “${query.trim()}”` : emptyLabel}
+            </Text>
+          }
           renderItem={renderOption}
         />
       ) : (

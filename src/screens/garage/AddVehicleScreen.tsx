@@ -253,12 +253,12 @@ export function AddVehicleScreen({ navigation }: Props) {
         };
       case 'variants':
         return {
-          title: 'Select variant',
+          title: 'Select version',
           options: variantOptions,
           selectedKey: selectedVariant?.id,
-          searchPlaceholder: 'Search variants',
+          searchPlaceholder: 'Search versions',
           loading: loadingVariants,
-          emptyLabel: 'No variants for this year',
+          emptyLabel: 'No versions for this year',
           onSelect: (key: string) => {
             const variant = variants.find(v => v.id === key) ?? null;
             setSelectedVariant(variant);
@@ -344,8 +344,8 @@ export function AddVehicleScreen({ navigation }: Props) {
       >
         <Text style={styles.intro}>
           {manual
-            ? 'Enter the car yourself if it isn’t in the catalogue.'
-            : 'Pick the car from the catalogue. Each choice keeps the list open for the next step.'}
+            ? 'Type in your car’s details.'
+            : 'Choose your car in four quick steps: make, model, year and version.'}
         </Text>
         {error && !manual ? <Text style={styles.error}>{error}</Text> : null}
         {validationError ? (
@@ -433,11 +433,11 @@ export function AddVehicleScreen({ navigation }: Props) {
               onPress={() => setOpenSheet('years')}
             />
             <FieldButton
-              label="Variant"
+              label="Version"
               value={
                 selectedVariant
                   ? String(selectedVariant.name)
-                  : 'Choose variant'
+                  : 'Choose version'
               }
               hint={
                 !selectedModelYear

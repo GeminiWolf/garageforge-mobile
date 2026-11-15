@@ -1,5 +1,12 @@
 import React, { type ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, layout, radius, spacing } from '../../theme';
 import { WINDOW_HEIGHT } from '../../utils/device';
@@ -31,7 +38,11 @@ export function SheetFrame({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.root}>
+      {/* Lifts the sheet above the keyboard so its buttons stay reachable. */}
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <Pressable
           style={styles.backdrop}
           onPress={onClose}
@@ -65,7 +76,7 @@ export function SheetFrame({
           </View>
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -10,9 +10,10 @@ export const BASE_URL_OBJ = {
   localIOS: 'http://localhost:3000',
 };
 
-/** Host docs/privacy-policy.md and set this to the live HTTPS URL before store submission. */
-export const PRIVACY_POLICY_URL =
-  'https://example.com/garage-forge-privacy-policy';
+export const WEBSITE_URL = 'https://garage-forge-web-production.up.railway.app';
+
+/** Shared privacy policy for the mobile app and website. */
+export const PRIVACY_POLICY_URL = `${WEBSITE_URL}/privacy-policy`;
 
 export function getDefaultApiBaseUrl(): string {
   if (!__DEV__) {
@@ -39,5 +40,3 @@ export function getDefaultSettings(): AppSettings {
     apiBearerToken: '',
   };
 }
-
-export const YEAR_RANGE = { min: 2010, max: 2026 };

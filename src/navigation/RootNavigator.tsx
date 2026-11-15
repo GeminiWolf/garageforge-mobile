@@ -184,11 +184,13 @@ export function RootNavigator() {
           component={LicensesScreen}
           options={{ title: 'Licenses' }}
         />
-        <GarageStack.Screen
-          name="ApiConnection"
-          component={ApiConnectionScreen}
-          options={{ title: 'Catalogue connection' }}
-        />
+        {__DEV__ ? (
+          <GarageStack.Screen
+            name="ApiConnection"
+            component={ApiConnectionScreen}
+            options={{ title: 'Catalogue connection' }}
+          />
+        ) : null}
       </GarageStack.Navigator>
     </NavigationContainer>
   );

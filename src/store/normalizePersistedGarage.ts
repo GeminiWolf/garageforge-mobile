@@ -140,6 +140,26 @@ export function normalizeSettings(raw: unknown): AppSettings {
     spendingAlertThreshold:
       asFiniteNumber(raw.spendingAlertThreshold) ??
       defaults.spendingAlertThreshold,
+    ...resolveApiConnection(raw, defaults),
+  };
+}
+
+/**
+ * The API URL and token are developer settings. Release builds always use the
+ * production API with no token, even if an older build saved overrides.
+ */
+export function resolveApiConnection(
+  raw: Record<string, unknown>,
+  defaults: Pick<AppSettings, 'apiBaseUrl' | 'apiBearerToken'>,
+  allowOverrides: boolean = __DEV__,
+): Pick<AppSettings, 'apiBaseUrl' | 'apiBearerToken'> {
+  if (!allowOverrides) {
+    return {
+      apiBaseUrl: defaults.apiBaseUrl,
+      apiBearerToken: defaults.apiBearerToken,
+    };
+  }
+  return {
     apiBaseUrl: asString(raw.apiBaseUrl) ?? defaults.apiBaseUrl,
     apiBearerToken: asString(raw.apiBearerToken) ?? defaults.apiBearerToken,
   };

@@ -3,6 +3,7 @@ import {
   normalizePersistedGarage,
   normalizeTrackedPart,
   normalizeVehicle,
+  resolveApiConnection,
 } from './normalizePersistedGarage';
 
 const vehicle = {
@@ -105,5 +106,21 @@ describe('normalizePersistedGarage', () => {
     });
 
     expect(normalized.trackedParts).toEqual([]);
+  });
+});
+
+describe('resolveApiConnection', () => {
+  const defaults = {
+    apiBaseUrl: 'https://api.example.com',
+    apiBearerToken: '',
+  };
+  const saved = { apiBaseUrl: 'http://10.0.0.5:3000', apiBearerToken: 'abc' };
+
+  it('keeps saved developer overrides in development builds', () => {
+    expect(resolveApiConnection(saved, defaults, true)).toEqual(saved);
+  });
+
+  it('ignores saved overrides in release builds', () => {
+    expect(resolveApiConnection(saved, defaults, false)).toEqual(defaults);
   });
 });

@@ -4,10 +4,11 @@ Use these as starting answers when filling store forms. Adjust if your API retai
 
 **Before submitting**
 
-1. Host [privacy-policy.md](./privacy-policy.md) at a stable HTTPS URL.
-2. Set `PRIVACY_POLICY_URL` in `src/config/index.ts` to that URL.
-3. Replace `[YOUR_PRIVACY_CONTACT_EMAIL]` in the hosted policy.
-4. Confirm export retention with your backend (policy assumes no retention after PDF generation).
+1. ~~Host the privacy policy at a stable HTTPS URL.~~ Done: https://garage-forge-web-production.up.railway.app/privacy-policy (served by `garage-forge-web`).
+2. ~~Set `PRIVACY_POLICY_URL` in `src/config/index.ts`.~~ Done.
+3. ~~Add a contact email to the hosted policy.~~ Done.
+4. Confirm export retention with your backend (policy assumes no retention after PDF generation). The backend generates the PDF in memory and does not store it.
+5. Before launch, consider a custom domain so the policy URL does not change if hosting moves.
 
 Package / bundle ID: `com.garageforge.app`
 
@@ -17,7 +18,7 @@ Package / bundle ID: `com.garageforge.app`
 
 ### Privacy Policy URL
 
-Your hosted privacy policy URL.
+https://garage-forge-web-production.up.railway.app/privacy-policy
 
 ### App Privacy (nutrition labels)
 

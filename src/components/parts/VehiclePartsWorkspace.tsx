@@ -1,6 +1,12 @@
 import { getBudgetParts } from '../../utils/budgetPlanner';
 import { hasPartEstimate } from '../../utils/partEstimate';
-import React, { useMemo, useState, type ReactNode } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Search, MoreHorizontal } from 'lucide-react-native';
@@ -16,8 +22,10 @@ import { getChecklistParts } from '../../utils/filterChecklistParts';
 import { statusFromChecklistChecked } from '../../utils/partsChecklistStatus';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { formatMoney } from '../../utils/formatMoney';
+import { getCommittedSpend } from '../../utils/budgetStatus';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getVehicleHealth } from '../../utils/healthSummary';
+import type { PartStatus } from '../../types/garage';
 import { TrackedPartRow } from './TrackedPartRow';
 
 type Scope = 'open' | 'all' | 'urgent';
@@ -81,11 +89,31 @@ export function VehiclePartsWorkspace({
     part => !hasPartEstimate(part),
   ).length;
   const health = getVehicleHealth(parts);
+  const spentOrOrdered = getCommittedSpend(parts);
   const openCount = parts.filter(part => part.status !== 'installed').length;
   const hasQuery = search.trim() !== '';
 
+  const [undo, setUndo] = useState<{
+    partId: string;
+    name: string;
+    previous: PartStatus;
+  } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  useEffect(() => () => clearTimeout(undoTimer.current), []);
+
   const handlePartCheckedChange = (partId: string, checked: boolean) => {
+    const part = parts.find(item => item.id === partId);
     updateTrackedPart(partId, { status: statusFromChecklistChecked(checked) });
+    clearTimeout(undoTimer.current);
+    if (checked && part) {
+      // Ticked parts leave the Open view, so offer a way back.
+      setUndo({ partId, name: part.name, previous: part.status });
+      undoTimer.current = setTimeout(() => setUndo(null), 5000);
+    } else {
+      setUndo(null);
+    }
   };
 
   return (
@@ -94,7 +122,7 @@ export function VehiclePartsWorkspace({
       <View style={styles.summary}>
         <View style={styles.summaryHeading}>
           <Text variant="label" tone="accent">
-            BUILD OVERVIEW
+            OVERVIEW
           </Text>
           {onRemoveVehicle ? (
             <Pressable
@@ -124,31 +152,38 @@ export function VehiclePartsWorkspace({
                   {openCount}
                 </Text>
                 <Text variant="caption" tone="muted">
-                  Open parts
+                  {openCount === 1 ? 'Part to go' : 'Parts to go'}
                 </Text>
               </View>
               <View style={styles.summaryCost}>
                 <Text variant="title" style={tabularNums}>
+                  {formatMoney(spentOrOrdered, currency)}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  Spent or ordered
+                </Text>
+                <Text
+                  variant="title"
+                  style={[tabularNums, styles.secondFigure]}
+                >
                   {budgetParts.length && missingEstimates === budgetParts.length
                     ? 'Not estimated'
                     : formatMoney(totalNeeded, currency)}
                 </Text>
                 <Text variant="caption" tone="muted">
                   {missingEstimates
-                    ? `${missingEstimates} ${
-                        missingEstimates === 1 ? 'part' : 'parts'
-                      } without estimates`
-                    : 'Estimated to source'}
+                    ? `Still to buy · ${missingEstimates} without a price`
+                    : 'Still to buy'}
                 </Text>
               </View>
             </View>
             <View style={styles.statusLine}>
-              <Text
-                variant="caption"
-                tone={health.urgentCount ? 'danger' : 'muted'}
-              >
-                {health.urgentCount} urgent
-              </Text>
+              <View style={styles.urgent}>
+                {health.urgentCount ? <View style={styles.urgentDot} /> : null}
+                <Text variant="caption" tone="muted">
+                  {health.urgentCount} urgent
+                </Text>
+              </View>
               <Text variant="caption" tone="muted">
                 {health.orderedCount} awaiting delivery
               </Text>
@@ -176,6 +211,9 @@ export function VehiclePartsWorkspace({
             options={SCOPE_OPTIONS}
             onChange={setScope}
           />
+          <Text variant="caption" tone="muted">
+            Tick a part when it’s installed.
+          </Text>
         </View>
       ) : null}
       <FlatList
@@ -228,24 +266,29 @@ export function VehiclePartsWorkspace({
             </View>
           )
         }
-        ListFooterComponent={
-          <View>
-            {parts.length > 0 ? (
-              <Pressable
-                onPress={() => navigation.navigate('AddPart', { vehicleId })}
-                accessibilityRole="button"
-                accessibilityLabel="Add part"
-                style={({ pressed }) => [
-                  styles.footerAdd,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text weight="medium">Add part</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        }
       />
+      {undo ? (
+        <View style={styles.undoBar} accessibilityLiveRegion="polite">
+          <Text style={styles.undoText} numberOfLines={1}>
+            {undo.name} marked installed
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Undo marking ${undo.name} installed`}
+            hitSlop={spacing.sm}
+            onPress={() => {
+              updateTrackedPart(undo.partId, { status: undo.previous });
+              clearTimeout(undoTimer.current);
+              setUndo(null);
+            }}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Text weight="semibold" tone="accent">
+              Undo
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -269,6 +312,39 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  undoBar: {
+    position: 'absolute',
+    left: layout.gutter,
+    right: layout.gutter,
+    bottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  undoText: {
+    flex: 1,
+  },
+  secondFigure: {
+    marginTop: spacing.sm,
+  },
+  urgent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  urgentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
   },
   summaryCost: { flex: 1, alignItems: 'flex-end' },
   statusLine: {
@@ -298,11 +374,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.gutter,
     paddingBottom: spacing.xxl,
     flexGrow: 1,
-  },
-  footerAdd: {
-    minHeight: layout.rowMinHeight,
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
   },
   filterEmpty: {
     paddingVertical: spacing.xl,

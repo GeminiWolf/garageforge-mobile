@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -71,25 +71,11 @@ export function GarageHomeScreen({ navigation }: Props) {
               <Text variant="hero">Your builds</Text>
               <Text variant="caption" tone="muted">
                 {vehicles.length}{' '}
-                {vehicles.length === 1 ? 'vehicle' : 'vehicles'} in the garage ·
-                Parts and progress, in one place
+                {vehicles.length === 1 ? 'vehicle' : 'vehicles'} in your garage
               </Text>
             </View>
           }
           ItemSeparatorComponent={VehicleSeparator}
-          ListFooterComponent={
-            <Pressable
-              onPress={() => navigation.navigate('AddVehicle')}
-              accessibilityRole="button"
-              accessibilityLabel="Add another vehicle"
-              style={({ pressed }) => [
-                styles.footerAdd,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text weight="medium">Add another vehicle</Text>
-            </Pressable>
-          }
         />
       )}
     </View>
@@ -107,13 +93,5 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: layout.gutter,
     paddingBottom: layout.gutter,
-  },
-  footerAdd: {
-    minHeight: layout.rowMinHeight,
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-  },
-  pressed: {
-    opacity: 0.72,
   },
 });

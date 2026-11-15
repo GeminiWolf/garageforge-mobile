@@ -114,6 +114,11 @@ describe('accountController', () => {
     expect(useGarageStore.getState().sync.cursor).toBe(
       '2026-11-15T12:00:00.000Z',
     );
+    // Bearer token only: a stored cookie without an Origin header makes the
+    // auth server reject sign-in as cross-site.
+    expect(calls.map(call => call.init?.credentials)).toEqual(
+      calls.map(() => 'omit'),
+    );
   });
 
   it('ends the session but keeps the garage when the server says 401', async () => {

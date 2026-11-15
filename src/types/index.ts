@@ -5,14 +5,18 @@ export type {
   GaragePersistState,
   NewTrackedPart,
   NewVehicle,
+  NoteKind,
   PartPriority,
   PartStatus,
   PendingDeletion,
   SyncState,
+  TimeEntry,
   TrackedPart,
   TrackedPartPatch,
   UnitSystem,
   Vehicle,
+  VehicleNote,
+  VehiclePatch,
 } from './garage';
 
 export type {

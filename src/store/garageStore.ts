@@ -16,6 +16,8 @@ export const useGarageStore = create<GarageState>()(
     partialize: state => ({
       vehicles: state.vehicles,
       trackedParts: state.trackedParts,
+      notes: state.notes,
+      timeEntries: state.timeEntries,
       settings: state.settings,
       account: state.account,
       sync: state.sync,

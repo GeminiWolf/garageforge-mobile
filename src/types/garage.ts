@@ -9,8 +9,43 @@ export type Vehicle = {
   make: string;
   model: string;
   trim: string;
+  /** Engine name from the catalogue, e.g. "2.8 GD-6". */
   engine?: string;
+  /** Engine code from the catalogue, e.g. "1GD-FTV". */
+  engineCode?: string;
+  /** Stamped on this car's engine; typed in by hand. */
+  engineNumber?: string;
+  /** Odometer reading in kilometres (shown in miles for imperial units). */
+  mileage?: number;
+  mileageUpdatedAt?: string;
   /** Device time of the last local change (used for sync). */
+  updatedAt: string;
+};
+
+export type VehiclePatch = Partial<
+  Pick<Vehicle, 'engineNumber' | 'mileage' | 'mileageUpdatedAt'>
+>;
+
+export type NoteKind = 'customer' | 'personal';
+
+/** A dated note on a vehicle: what the customer reported, or your own. */
+export type VehicleNote = {
+  id: string;
+  vehicleId: string;
+  kind: NoteKind;
+  body: string;
+  writtenAt: string;
+  updatedAt: string;
+};
+
+/** Time spent working on a vehicle. */
+export type TimeEntry = {
+  id: string;
+  vehicleId: string;
+  minutes: number;
+  /** Calendar date, YYYY-MM-DD. */
+  workedOn: string;
+  note?: string;
   updatedAt: string;
 };
 
@@ -65,7 +100,9 @@ export type Account = {
 /** A deleted record waiting to be sent to the server. */
 export type PendingDeletion =
   | { type: 'vehicle'; record: Vehicle; deletedAt: string }
-  | { type: 'part'; record: TrackedPart; deletedAt: string };
+  | { type: 'part'; record: TrackedPart; deletedAt: string }
+  | { type: 'note'; record: VehicleNote; deletedAt: string }
+  | { type: 'timeEntry'; record: TimeEntry; deletedAt: string };
 
 export type SyncState = {
   /** Server cursor from the last successful sync. */
@@ -82,6 +119,8 @@ export type SyncState = {
 export type GaragePersistState = {
   vehicles: Vehicle[];
   trackedParts: TrackedPart[];
+  notes: VehicleNote[];
+  timeEntries: TimeEntry[];
   settings: AppSettings;
   account: Account | null;
   sync: SyncState;

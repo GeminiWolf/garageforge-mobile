@@ -1,5 +1,6 @@
 import type {
   CurrencyCode,
+  NoteKind,
   PartPriority,
   PartStatus,
   UnitSystem,
@@ -15,6 +16,30 @@ export type ServerVehicle = {
   model: string;
   trim: string;
   engine: string | null;
+  engineCode: string | null;
+  engineNumber: string | null;
+  currentMileage: number | null;
+  mileageUpdatedAt: string | null;
+  clientUpdatedAt: string;
+  deletedAt: string | null;
+};
+
+export type ServerNote = {
+  id: string;
+  vehicleId: string;
+  kind: NoteKind;
+  body: string;
+  writtenAt: string;
+  clientUpdatedAt: string;
+  deletedAt: string | null;
+};
+
+export type ServerTimeEntry = {
+  id: string;
+  vehicleId: string;
+  minutes: number;
+  workedOn: string;
+  note: string | null;
   clientUpdatedAt: string;
   deletedAt: string | null;
 };
@@ -54,6 +79,30 @@ export type VehicleChange = {
   model: string;
   trim: string;
   engine?: string;
+  engineCode?: string;
+  engineNumber: string | null;
+  currentMileage: number | null;
+  mileageUpdatedAt: string | null;
+  updatedAt: string;
+  deletedAt?: string;
+};
+
+export type NoteChange = {
+  id: string;
+  vehicleId: string;
+  kind: NoteKind;
+  body: string;
+  writtenAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+};
+
+export type TimeEntryChange = {
+  id: string;
+  vehicleId: string;
+  minutes: number;
+  workedOn: string;
+  note: string | null;
   updatedAt: string;
   deletedAt?: string;
 };
@@ -81,11 +130,13 @@ export type SyncRequest = {
   since?: string;
   vehicles: VehicleChange[];
   parts: PartChange[];
+  notes: NoteChange[];
+  timeEntries: TimeEntryChange[];
   settings?: ServerSettings & { updatedAt: string };
 };
 
 export type SyncRejection = {
-  type: 'vehicle' | 'part';
+  type: 'vehicle' | 'part' | 'note' | 'time_entry';
   id: string;
   reason: 'id_conflict' | 'unknown_vehicle';
 };
@@ -94,6 +145,9 @@ export type SyncResponse = {
   cursor: string;
   vehicles: ServerVehicle[];
   parts: ServerPart[];
+  /** Missing from servers older than the vehicle details release. */
+  notes?: ServerNote[];
+  timeEntries?: ServerTimeEntry[];
   settings: ServerSettings;
   rejected: SyncRejection[];
 };

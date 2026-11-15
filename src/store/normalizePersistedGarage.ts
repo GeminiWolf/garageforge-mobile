@@ -5,8 +5,10 @@ import type {
   GaragePersistState,
   PendingDeletion,
   SyncState,
+  TimeEntry,
   TrackedPart,
   Vehicle,
+  VehicleNote,
 } from '../types/garage';
 import { createId, isUuid } from '../utils/createId';
 
@@ -53,11 +55,75 @@ export function normalizeVehicle(raw: unknown): Vehicle | null {
     trim: asString(raw.trim) ?? '',
     updatedAt: asTimestamp(raw.updatedAt) ?? LEGACY_UPDATED_AT(),
   };
-  const engine = asString(raw.engine);
-  if (engine) {
-    vehicle.engine = engine;
+  for (const key of ['engine', 'engineCode', 'engineNumber'] as const) {
+    const value = asString(raw[key]);
+    if (value) {
+      vehicle[key] = value;
+    }
+  }
+  const mileage = asFiniteNumber(raw.mileage);
+  if (mileage != null && mileage >= 0) {
+    vehicle.mileage = mileage;
+    const readAt = asTimestamp(raw.mileageUpdatedAt);
+    if (readAt) {
+      vehicle.mileageUpdatedAt = readAt;
+    }
   }
   return vehicle;
+}
+
+export function normalizeNote(raw: unknown): VehicleNote | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+  const id = asString(raw.id);
+  const vehicleId = asString(raw.vehicleId);
+  const body = asString(raw.body)?.trim();
+  const writtenAt = asTimestamp(raw.writtenAt);
+  if (!id || !vehicleId || !body || !writtenAt) {
+    return null;
+  }
+  return {
+    id,
+    vehicleId,
+    kind: raw.kind === 'customer' ? 'customer' : 'personal',
+    body,
+    writtenAt,
+    updatedAt: asTimestamp(raw.updatedAt) ?? writtenAt,
+  };
+}
+
+export function normalizeTimeEntry(raw: unknown): TimeEntry | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+  const id = asString(raw.id);
+  const vehicleId = asString(raw.vehicleId);
+  const minutes = asFiniteNumber(raw.minutes);
+  const workedOn = asString(raw.workedOn);
+  if (
+    !id ||
+    !vehicleId ||
+    minutes == null ||
+    minutes < 1 ||
+    minutes > 1440 ||
+    !workedOn ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(workedOn)
+  ) {
+    return null;
+  }
+  const entry: TimeEntry = {
+    id,
+    vehicleId,
+    minutes: Math.round(minutes),
+    workedOn,
+    updatedAt: asTimestamp(raw.updatedAt) ?? LEGACY_UPDATED_AT(),
+  };
+  const note = asString(raw.note)?.trim();
+  if (note) {
+    entry.note = note;
+  }
+  return entry;
 }
 
 export function normalizeTrackedPart(raw: unknown): TrackedPart | null {
@@ -211,6 +277,18 @@ function normalizeDeletion(raw: unknown): PendingDeletion | null {
       ? { type: 'part', record, deletedAt }
       : null;
   }
+  if (raw.type === 'note') {
+    const record = normalizeNote(raw.record);
+    return record && isUuid(record.id)
+      ? { type: 'note', record, deletedAt }
+      : null;
+  }
+  if (raw.type === 'timeEntry') {
+    const record = normalizeTimeEntry(raw.record);
+    return record && isUuid(record.id)
+      ? { type: 'timeEntry', record, deletedAt }
+      : null;
+  }
   return null;
 }
 
@@ -281,10 +359,27 @@ export function normalizePersistedGarage(raw: unknown): GaragePersistState {
       })
     : [];
   const { vehicles, trackedParts } = migrateIdsToUuid(rawVehicles, rawParts);
+  // Notes and time entries were added after the UUID migration, so their
+  // vehicle ids are already UUIDs.
+  const vehicleIds = new Set(vehicles.map(vehicle => vehicle.id));
+  const notes = Array.isArray(stored.notes)
+    ? stored.notes.flatMap(item => {
+        const note = normalizeNote(item);
+        return note && vehicleIds.has(note.vehicleId) ? [note] : [];
+      })
+    : [];
+  const timeEntries = Array.isArray(stored.timeEntries)
+    ? stored.timeEntries.flatMap(item => {
+        const entry = normalizeTimeEntry(item);
+        return entry && vehicleIds.has(entry.vehicleId) ? [entry] : [];
+      })
+    : [];
 
   return {
     vehicles,
     trackedParts,
+    notes,
+    timeEntries,
     settings: normalizeSettings(stored.settings),
     account: normalizeAccount(stored.account),
     sync: normalizeSyncState(stored.sync),

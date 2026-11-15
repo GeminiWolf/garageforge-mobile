@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { createVehiclesSlice } from './slices/vehiclesSlice';
 import { createTrackedPartsSlice } from './slices/trackedPartsSlice';
+import { createVehicleLogSlice } from './slices/vehicleLogSlice';
 import { createSettingsSlice } from './slices/settingsSlice';
 import { createAccountSlice, queueDeletions } from './slices/accountSlice';
 import type { GarageState } from './types';
@@ -18,6 +19,8 @@ export const createGarageState: StateCreator<GarageState> = (
       return {
         vehicles: [],
         trackedParts: [],
+        notes: [],
+        timeEntries: [],
         sync: queueDeletions(state, [
           ...state.vehicles.map(record => ({
             type: 'vehicle' as const,
@@ -34,6 +37,7 @@ export const createGarageState: StateCreator<GarageState> = (
     }),
   ...createVehiclesSlice(set, get, api),
   ...createTrackedPartsSlice(set, get, api),
+  ...createVehicleLogSlice(set, get, api),
   ...createSettingsSlice(set, get, api),
   ...createAccountSlice(set, get, api),
 });

@@ -311,6 +311,14 @@ export function AddVehicleScreen({ navigation }: Props) {
       make: selectedMake.name,
       model: selectedModel.name,
       trim: selectedVariant.trim,
+      // Engine name and code come from the catalogue; the engine number is
+      // unique to each car and is typed in later.
+      ...(selectedVariant.engine_name?.trim()
+        ? { engine: selectedVariant.engine_name.trim() }
+        : {}),
+      ...(selectedVariant.engine_code?.trim()
+        ? { engineCode: selectedVariant.engine_code.trim() }
+        : {}),
     });
     navigation.replace('CarDashboard', { vehicleId: id });
   };

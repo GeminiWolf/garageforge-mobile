@@ -14,6 +14,7 @@ export const WEBSITE_URL = 'https://garage-forge-web-production.up.railway.app';
 
 /** Shared privacy policy for the mobile app and website. */
 export const PRIVACY_POLICY_URL = `${WEBSITE_URL}/privacy-policy`;
+export const RESET_PASSWORD_URL = `${WEBSITE_URL}/app/reset-password`;
 
 export function getDefaultApiBaseUrl(): string {
   if (!__DEV__) {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Text } from '../../components/common/Text';
+import { RESET_PASSWORD_URL } from '../../config';
 import {
   createAccount,
   signInWithEmail,
@@ -119,6 +121,19 @@ export default function AccountScreen() {
           testID="account-password"
         />
 
+        {isSignUp ? null : (
+          <View style={styles.forgotRow}>
+            <Button
+              label="Forgot password?"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onPress={() => Linking.openURL(RESET_PASSWORD_URL)}
+              testID="account-forgot"
+            />
+          </View>
+        )}
+
         {error ? (
           <Text tone="danger" accessibilityRole="alert">
             {error}
@@ -167,5 +182,9 @@ const styles = StyleSheet.create({
   },
   switchRow: {
     alignItems: 'center',
+  },
+  forgotRow: {
+    alignItems: 'flex-end',
+    marginTop: -spacing.sm,
   },
 });

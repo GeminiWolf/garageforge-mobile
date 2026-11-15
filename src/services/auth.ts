@@ -18,15 +18,24 @@ type Credentials = { email: string; password: string };
 
 const trimBase = (baseUrl: string) => baseUrl.replace(/\/$/, '');
 
+/** Signing in before confirming the email; the server sends a new link. */
+export class EmailNotConfirmedError extends ApiError {
+  constructor() {
+    super('Confirm your email first.', 403);
+    this.name = 'EmailNotConfirmedError';
+  }
+}
+
 /**
  * Better Auth returns the bearer token for native clients in the
- * `set-auth-token` response header.
+ * `set-auth-token` response header. There is none after sign-up when the
+ * email has to be confirmed first; that returns null.
  */
 async function authenticate(
   baseUrl: string,
   path: '/api/auth/sign-in/email' | '/api/auth/sign-up/email',
   body: Record<string, string>,
-): Promise<string> {
+): Promise<string | null> {
   let response: Response;
   try {
     response = await fetch(`${trimBase(baseUrl)}${path}`, {
@@ -40,6 +49,9 @@ async function authenticate(
     });
   } catch {
     throw new ApiError(OFFLINE_MESSAGE, undefined, true);
+  }
+  if (response.status === 403 && path === '/api/auth/sign-in/email') {
+    throw new EmailNotConfirmedError();
   }
   if (!response.ok) {
     let message =
@@ -57,20 +69,28 @@ async function authenticate(
     throw new ApiError(message, response.status);
   }
   const token = response.headers.get('set-auth-token');
-  if (!token) {
+  if (!token && path === '/api/auth/sign-in/email') {
     throw new ApiError('Sign-in did not return a session. Please try again.');
   }
-  return token;
+  return token || null;
 }
 
-export function signIn(baseUrl: string, credentials: Credentials) {
-  return authenticate(baseUrl, '/api/auth/sign-in/email', credentials);
+export async function signIn(
+  baseUrl: string,
+  credentials: Credentials,
+): Promise<string> {
+  return (await authenticate(
+    baseUrl,
+    '/api/auth/sign-in/email',
+    credentials,
+  )) as string;
 }
 
+/** Returns null when the account needs its email confirmed first. */
 export function signUp(
   baseUrl: string,
   credentials: Credentials & { name: string },
-) {
+): Promise<string | null> {
   return authenticate(baseUrl, '/api/auth/sign-up/email', credentials);
 }
 

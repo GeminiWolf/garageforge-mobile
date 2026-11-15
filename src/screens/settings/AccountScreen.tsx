@@ -13,6 +13,7 @@ import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Text } from '../../components/common/Text';
 import { RESET_PASSWORD_URL } from '../../config';
+import { EmailNotConfirmedError } from '../../services/auth';
 import {
   createAccount,
   signInWithEmail,
@@ -47,6 +48,7 @@ export default function AccountScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [checkEmail, setCheckEmail] = useState<string | null>(null);
 
   const submit = async () => {
     const problem = validateAccountForm(mode, { name, email, password });
@@ -56,14 +58,23 @@ export default function AccountScreen() {
     }
     setError(null);
     setBusy(true);
+    const address = email.trim();
     try {
       if (mode === 'signUp') {
-        await createAccount(name.trim(), email.trim(), password);
+        const result = await createAccount(name.trim(), address, password);
+        if (result === 'confirmEmail') {
+          setCheckEmail(address);
+          return;
+        }
       } else {
-        await signInWithEmail(email.trim(), password);
+        await signInWithEmail(address, password);
       }
       navigation.goBack();
     } catch (cause) {
+      if (cause instanceof EmailNotConfirmedError) {
+        setCheckEmail(address);
+        return;
+      }
       setError(
         cause instanceof Error ? cause.message : 'Something went wrong.',
       );
@@ -73,6 +84,34 @@ export default function AccountScreen() {
   };
 
   const isSignUp = mode === 'signUp';
+
+  if (checkEmail) {
+    return (
+      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+        <Text weight="semibold" style={styles.title} accessibilityRole="header">
+          Confirm your email
+        </Text>
+        <Text>
+          We’ve sent a link to {checkEmail}. Open it to confirm your email, then
+          come back and sign in. The link works for 24 hours.
+        </Text>
+        <Text tone="muted">
+          Nothing arrived? Check your spam folder. Signing in again sends a new
+          link.
+        </Text>
+        <Button
+          label="Sign in"
+          onPress={() => {
+            setCheckEmail(null);
+            setMode('signIn');
+            setPassword('');
+            setError(null);
+          }}
+          testID="account-confirmed"
+        />
+      </ScrollView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -179,6 +218,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.gutter,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  title: {
+    fontSize: 20,
+    lineHeight: 26,
   },
   switchRow: {
     alignItems: 'center',

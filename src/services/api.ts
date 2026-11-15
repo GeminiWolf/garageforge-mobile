@@ -67,6 +67,16 @@ export function mapVariant(raw: VehicleVariant): VariantOption {
 }
 
 let apiBearerToken = '';
+/** Session token of the signed-in account; takes precedence when set. */
+let sessionToken = '';
+
+export function setSessionToken(token: string | null): void {
+  sessionToken = token ?? '';
+}
+
+export function getSessionToken(): string {
+  return sessionToken;
+}
 
 export function normalizeBearerToken(token: string): string {
   const trimmed = token.trim();
@@ -86,7 +96,7 @@ export function getApiBearerToken(): string {
 
 export function buildRequestHeaders(
   init?: RequestInit,
-  token: string = apiBearerToken,
+  token: string = sessionToken || apiBearerToken,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -106,7 +116,7 @@ export function buildRequestHeaders(
   return headers;
 }
 
-async function request<T>(
+export async function request<T>(
   baseUrl: string,
   path: string,
   init?: RequestInit,
@@ -147,6 +157,9 @@ async function request<T>(
     throw new ApiError(message, response.status);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return response.json() as Promise<T>;
 }
 

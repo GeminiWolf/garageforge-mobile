@@ -9,6 +9,7 @@ import { Car, Settings as SettingsIcon, Wallet } from 'lucide-react-native';
 import type { GarageStackParamList, RootTabParamList } from './types';
 import {
   AboutScreen,
+  AccountScreen,
   AddPartScreen,
   AddVehicleScreen,
   ApiConnectionScreen,
@@ -27,6 +28,7 @@ import { AddPartHeaderRight } from './components/AddPartHeaderRight';
 import { AddPartTitle } from './components/AddPartTitle';
 import { PartHeaderTitle } from './components/PartHeaderTitle';
 import { VehicleHeaderTitle } from './components/VehicleHeaderTitle';
+import { useAutoSync } from '../hooks/useAutoSync';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const GarageStack = createNativeStackNavigator<GarageStackParamList>();
@@ -132,6 +134,7 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
+  useAutoSync();
   return (
     <NavigationContainer theme={navTheme}>
       <GarageStack.Navigator
@@ -178,6 +181,11 @@ export function RootNavigator() {
           name="About"
           component={AboutScreen}
           options={{ title: 'About' }}
+        />
+        <GarageStack.Screen
+          name="Account"
+          component={AccountScreen}
+          options={{ title: 'Account' }}
         />
         <GarageStack.Screen
           name="Licenses"

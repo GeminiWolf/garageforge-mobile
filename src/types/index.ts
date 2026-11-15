@@ -1,4 +1,5 @@
 export type {
+  Account,
   AppSettings,
   CurrencyCode,
   GaragePersistState,
@@ -6,6 +7,8 @@ export type {
   NewVehicle,
   PartPriority,
   PartStatus,
+  PendingDeletion,
+  SyncState,
   TrackedPart,
   TrackedPartPatch,
   UnitSystem,

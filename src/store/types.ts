@@ -1,8 +1,11 @@
 import type { StateCreator } from 'zustand';
 import type {
+  Account,
   AppSettings,
   NewTrackedPart,
   NewVehicle,
+  PendingDeletion,
+  SyncState,
   TrackedPart,
   TrackedPartPatch,
   Vehicle,
@@ -27,12 +30,30 @@ export type SettingsSlice = {
   syncBudgetPeriod: () => void;
 };
 
+export type AccountSlice = {
+  account: Account | null;
+  sync: SyncState;
+  setAccount: (account: Account | null) => void;
+  /** Replaces sync bookkeeping and garage data after a sync round. */
+  applySyncResult: (
+    result: Pick<
+      GarageState,
+      'vehicles' | 'trackedParts' | 'settings' | 'sync'
+    >,
+  ) => void;
+  /** Removes the garage and account from this device (sign-out/delete). */
+  resetLocalAccountData: () => void;
+};
+
 export type GarageState = VehiclesSlice &
   TrackedPartsSlice &
-  SettingsSlice & {
+  SettingsSlice &
+  AccountSlice & {
     hasHydrated: boolean;
     setHasHydrated: (value: boolean) => void;
     clearGarage: () => void;
   };
 
 export type GarageSlice<T> = StateCreator<GarageState, [], [], T>;
+
+export type { PendingDeletion };

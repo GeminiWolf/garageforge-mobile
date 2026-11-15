@@ -11,4 +11,5 @@ export { SettingsScreen } from './settings/SettingsScreen';
 export { default as ExportScreen } from './settings/ExportScreen';
 export { default as AboutScreen } from './settings/AboutScreen';
 export { default as LicensesScreen } from './settings/LicensesScreen';
+export { default as AccountScreen } from './settings/AccountScreen';
 export { default as ApiConnectionScreen } from './settings/ApiConnectionScreen';

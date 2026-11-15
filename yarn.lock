@@ -5633,6 +5633,11 @@ react-native-blob-util@^0.24.10:
     base-64 "1.0.0"
     glob "13.0.6"
 
+react-native-keychain@11.0.0:
+  version "11.0.0"
+  resolved "https://registry.yarnpkg.com/react-native-keychain/-/react-native-keychain-11.0.0.tgz#72a57da7733ef9fd83d4b33955c7c9dcf85edbd0"
+  integrity sha512-MjN452c9d4Sqnte6U87uDrYgZmlyylojAJWuqde19w2dGEkHgXUUO98krBFEFWvx/2KDBNFsbzzqKlo9QfnyYg==
+
 react-native-safe-area-context@^5.8.0:
   version "5.8.1"
   resolved "https://registry.yarnpkg.com/react-native-safe-area-context/-/react-native-safe-area-context-5.8.1.tgz#ceba91293ca06e878f64d3a28abde164191f15a9"

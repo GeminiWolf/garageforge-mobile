@@ -7,6 +7,13 @@ import { Button } from '../../components/common/Button';
 import { SearchableBottomSheet } from '../../components/common/SearchableBottomSheet';
 import { SheetFrame } from '../../components/common/SheetFrame';
 import { useGarageStore } from '../../store/garageStore';
+import {
+  deleteMyAccount,
+  signOut,
+  syncNow,
+  useSyncStatus,
+} from '../../services/accountController';
+import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import type { CurrencyCode } from '../../types';
 import { layout, spacing } from '../../theme';
 import { List } from '../../components/common/List';
@@ -58,6 +65,9 @@ export function SettingsScreen() {
   const settings = useGarageStore(s => s.settings);
   const updateSettings = useGarageStore(s => s.updateSettings);
   const clearGarage = useGarageStore(s => s.clearGarage);
+  const account = useGarageStore(s => s.account);
+  const lastSyncedAt = useGarageStore(s => s.sync.lastSyncedAt);
+  const syncStatus = useSyncStatus();
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [openRegionSheet, setOpenRegionSheet] = useState(false);
@@ -96,9 +106,107 @@ export function SettingsScreen() {
     setOpenBudgetSheet(false);
   };
 
+  const syncDescription =
+    syncStatus.state === 'syncing'
+      ? 'Syncing…'
+      : syncStatus.state === 'error'
+      ? syncStatus.message
+      : lastSyncedAt
+      ? `Synced ${formatRelativeTime(lastSyncedAt)}`
+      : 'Not synced yet';
+
+  const confirmSignOut = () => {
+    Alert.alert(
+      'Sign out',
+      'Your garage stays in your account and is removed from this phone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: async () => {
+            if (await signOut()) {
+              return;
+            }
+            Alert.alert(
+              'Changes not uploaded',
+              'Some changes on this phone could not be uploaded. Sign out anyway and lose them?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Sign out anyway',
+                  style: 'destructive',
+                  onPress: () =>
+                    signOut({ force: true }).catch(() => undefined),
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your account and every vehicle and part saved in it. The garage on this phone is removed too. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMyAccount();
+            } catch (error) {
+              Alert.alert(
+                'Could not delete account',
+                error instanceof Error ? error.message : 'Try again.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentContainer}>
+        <View>
+          <Text size="sm" tone="muted" style={styles.section}>
+            Account
+          </Text>
+          {account ? (
+            <List.View>
+              <List.Item
+                label={account.email}
+                description={syncDescription}
+                value="Sync now"
+                onPress={() => syncNow().catch(() => undefined)}
+              />
+              <List.Item label="Sign out" onPress={confirmSignOut} />
+              <List.Item
+                label="Delete account"
+                onPress={confirmDeleteAccount}
+              />
+            </List.View>
+          ) : (
+            <List.View>
+              <List.Item
+                label="Sign in or create an account"
+                description={
+                  syncStatus.state === 'error'
+                    ? syncStatus.message
+                    : 'Back up your garage and use it on the web'
+                }
+                onPress={() => navigation.navigate('Account')}
+              />
+            </List.View>
+          )}
+        </View>
+
         <View>
           <Text size="sm" tone="muted" style={styles.section}>
             Catalogue
@@ -183,7 +291,9 @@ export function SettingsScreen() {
           onPress={() => {
             Alert.alert(
               'Clear garage',
-              'Remove all vehicles and tracked parts? Settings stay.',
+              account
+                ? 'Remove all vehicles and tracked parts from this phone and your account? Settings stay.'
+                : 'Remove all vehicles and tracked parts? Settings stay.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {

@@ -128,13 +128,13 @@ export function BudgetScreen() {
                     ? 'Set your monthly cap'
                     : isOverCap
                     ? 'Over this month’s cap'
-                    : 'Available after commitments'}
+                    : 'Left to spend this month'}
                 </Text>
                 <Text variant="title" style={tabularNums}>
                   {formatMoney(Math.abs(remaining), currency)}
                 </Text>
                 <Text tone="muted">
-                  Spent {formatMoney(spent, currency)} · Committed{' '}
+                  Spent {formatMoney(spent, currency)} · Ordered{' '}
                   {formatMoney(committed, currency)}
                 </Text>
                 <Text size="sm" tone="muted">
@@ -160,9 +160,9 @@ export function BudgetScreen() {
                 </Pressable>
                 {showDetails ? (
                   <Text variant="caption" tone="muted">
-                    Spent uses recorded actual costs. Unpaid orders use
-                    estimates. Parts still to buy are separate from monthly
-                    usage.
+                    Spent is what you’ve paid this month. Ordered parts count at
+                    their estimate until you add what you paid. Parts you still
+                    need to buy don’t count yet.
                   </Text>
                 ) : null}
                 {missingEstimates ? (
@@ -179,6 +179,14 @@ export function BudgetScreen() {
                   accessibilityLabel="Spent and committed versus monthly cap"
                   style={styles.bar}
                 />
+                <View style={styles.barScale}>
+                  <Text variant="caption" tone="muted" style={tabularNums}>
+                    {formatMoney(used, currency)} used
+                  </Text>
+                  <Text variant="caption" tone="muted" style={tabularNums}>
+                    {formatMoney(monthlyCap, currency)} cap
+                  </Text>
+                </View>
                 {isSpendingAlert && !isOverCap ? (
                   <Text size="sm" tone="warning">
                     {Math.round(usagePercent)}% of this month’s cap is spoken
@@ -285,6 +293,11 @@ export function BudgetScreen() {
 }
 
 const styles = StyleSheet.create({
+  barScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: -spacing.xs,
+  },
   detailsAction: { minHeight: 32, justifyContent: 'center' },
   editor: { gap: spacing.sm },
   actions: {

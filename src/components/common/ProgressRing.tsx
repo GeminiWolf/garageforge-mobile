@@ -11,7 +11,7 @@ type Props = {
   stroke?: number;
 };
 
-/** "1/4" in a ring that fills as parts are installed. */
+/** A ring that fills as parts are installed, with the percentage inside. */
 export function ProgressRing({ done, total, size = 72, stroke = 8 }: Props) {
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
@@ -47,9 +47,7 @@ export function ProgressRing({ done, total, size = 72, stroke = 8 }: Props) {
         ) : null}
       </Svg>
       <View style={[StyleSheet.absoluteFill, styles.center]}>
-        <Text style={styles.label}>
-          {done}/{total}
-        </Text>
+        <Text style={styles.label}>{Math.round(share * 100)}%</Text>
       </View>
     </View>
   );

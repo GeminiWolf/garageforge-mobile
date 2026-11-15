@@ -1,12 +1,14 @@
 import * as Keychain from 'react-native-keychain';
 import { useGarageStore } from '../store/garageStore';
 import {
+  createAccount,
   signInWithEmail,
   signOut,
   syncNow,
   useSyncStatus,
 } from './accountController';
 import { getSessionToken, setSessionToken } from './api';
+import { EmailNotConfirmedError } from './auth';
 
 type Call = { url: string; init?: RequestInit };
 
@@ -52,6 +54,29 @@ beforeEach(() => {
 });
 
 describe('accountController', () => {
+  it('asks to confirm the email when sign-up returns no session', async () => {
+    mockFetch(() =>
+      json(200, { token: null, user: { id: 'u1', email: 'a@example.test' } }),
+    );
+
+    await expect(
+      createAccount('A', 'a@example.test', 'correct-horse-1'),
+    ).resolves.toBe('confirmEmail');
+
+    expect(getSessionToken()).toBeFalsy();
+  });
+
+  it('reports an unconfirmed email on sign-in', async () => {
+    mockFetch(() =>
+      json(403, { code: 'EMAIL_NOT_VERIFIED', message: 'Email not verified' }),
+    );
+
+    await expect(
+      signInWithEmail('a@example.test', 'correct-horse-1'),
+    ).rejects.toBeInstanceOf(EmailNotConfirmedError);
+    expect(getSessionToken()).toBeFalsy();
+  });
+
   it('signs in, stores the token securely and uploads the local garage', async () => {
     const vehicleId = useGarageStore.getState().addVehicle({
       year: 2016,

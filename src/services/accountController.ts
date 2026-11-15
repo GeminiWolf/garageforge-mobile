@@ -133,12 +133,21 @@ export async function signInWithEmail(email: string, password: string) {
   await startSession(await signIn(baseUrl(), { email, password }));
 }
 
+/**
+ * Creates the account and signs in, or returns 'confirmEmail' when the
+ * server wants the email confirmed first (a link has been sent).
+ */
 export async function createAccount(
   name: string,
   email: string,
   password: string,
-) {
-  await startSession(await signUp(baseUrl(), { name, email, password }));
+): Promise<'signedIn' | 'confirmEmail'> {
+  const token = await signUp(baseUrl(), { name, email, password });
+  if (!token) {
+    return 'confirmEmail';
+  }
+  await startSession(token);
+  return 'signedIn';
 }
 
 /**

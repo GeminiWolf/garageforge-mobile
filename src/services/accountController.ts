@@ -84,8 +84,7 @@ async function runSync(): Promise<void> {
     }
     useSyncStatus.setState({
       state: 'error',
-      message:
-        error instanceof Error ? error.message : 'Sync failed. Try again.',
+      message: syncErrorMessage(error),
     });
   }
 }
@@ -202,4 +201,15 @@ async function endExpiredSession(): Promise<void> {
     state: 'error',
     message: 'Your session ended. Sign in again to keep syncing.',
   });
+}
+
+/** Short, calm wording for the sync line in Settings. */
+export function syncErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.offline) {
+    return 'Offline. Changes will sync when you’re back online.';
+  }
+  if (error instanceof ApiError && (error.status ?? 0) >= 500) {
+    return 'Couldn’t sync just now. It will try again soon.';
+  }
+  return error instanceof Error ? error.message : 'Couldn’t sync. Try again.';
 }

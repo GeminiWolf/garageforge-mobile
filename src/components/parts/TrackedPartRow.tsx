@@ -45,7 +45,15 @@ export function TrackedPartRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${part.name}, part number $Part no. {part.partNumber}, ${part.priority} priority, ${part.status}, estimated ${cost}`}
+      accessibilityLabel={[
+        part.name,
+        part.partNumber ? `part number ${part.partNumber}` : null,
+        `${part.priority} priority`,
+        statusLabel,
+        hasPartEstimate(part) ? `estimated ${cost}` : cost,
+      ]
+        .filter(Boolean)
+        .join(', ')}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       {checkbox ? (

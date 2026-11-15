@@ -15,6 +15,7 @@ import { Input } from '../../components/common/Input';
 import { SearchableBottomSheet } from '../../components/common/SearchableBottomSheet';
 import type { GarageStackParamList } from '../../navigation/types';
 import {
+  ApiError,
   getMakes,
   getModels,
   getModelYears,
@@ -75,9 +76,8 @@ export function AddVehicleScreen({ navigation }: Props) {
         }
       })
       .catch(err => {
-        console.error('getMakes error', err);
         if (!cancelled) {
-          setError(err.message || 'Failed to load makes');
+          setError(catalogueErrorMessage(err));
           setMakes([]);
         }
       })
@@ -111,7 +111,7 @@ export function AddVehicleScreen({ navigation }: Props) {
       })
       .catch(err => {
         if (!cancelled) {
-          setError(err.message || 'Failed to load models');
+          setError(catalogueErrorMessage(err));
           setModels([]);
         }
       })
@@ -143,7 +143,7 @@ export function AddVehicleScreen({ navigation }: Props) {
       })
       .catch(err => {
         if (!cancelled) {
-          setError(err.message || 'Failed to load years');
+          setError(catalogueErrorMessage(err));
           setModelYears([]);
         }
       })
@@ -173,7 +173,7 @@ export function AddVehicleScreen({ navigation }: Props) {
       })
       .catch(err => {
         if (!cancelled) {
-          setError(err.message || 'Failed to load variants');
+          setError(catalogueErrorMessage(err));
           setVariants([]);
         }
       })
@@ -588,3 +588,9 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
 });
+
+function catalogueErrorMessage(error: unknown): string {
+  return error instanceof ApiError && error.offline
+    ? 'Can’t load the car list while you’re offline. Check your connection, or enter your car yourself below.'
+    : 'Can’t load the car list right now. Try again, or enter your car yourself below.';
+}

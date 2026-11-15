@@ -1,4 +1,11 @@
-import { ApiError, NO_COOKIES, buildRequestHeaders, request } from './api';
+import {
+  ApiError,
+  NO_COOKIES,
+  OFFLINE_MESSAGE,
+  buildRequestHeaders,
+  fallbackErrorMessage,
+  request,
+} from './api';
 import type { Account } from '../types/garage';
 import type { ServerSettings } from './syncTypes';
 
@@ -32,13 +39,13 @@ async function authenticate(
       body: JSON.stringify(body),
     });
   } catch {
-    throw new ApiError('Unable to reach Garage Forge. Check your connection.');
+    throw new ApiError(OFFLINE_MESSAGE, undefined, true);
   }
   if (!response.ok) {
     let message =
       response.status === 429
         ? 'Too many attempts. Wait a minute and try again.'
-        : `Request failed (${response.status})`;
+        : fallbackErrorMessage(response.status);
     try {
       const data = (await response.json()) as { message?: string };
       if (data?.message && response.status !== 429) {

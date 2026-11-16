@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { CurrencyCode, TrackedPart } from '../../types';
 import { colors, spacing, tabularNums } from '../../theme';
 import { formatMoney } from '../../utils/formatMoney';
-import { hasPartEstimate } from '../../utils/partEstimate';
+import { partPrice } from '../../utils/partEstimate';
 import {
   PRIORITY_LABELS,
   STATUS_LABELS,
@@ -33,10 +33,8 @@ export function TrackedPartRow({
   onCheckedChange,
   divider = true,
 }: Props) {
-  const estimated = hasPartEstimate(part);
-  const cost = estimated
-    ? formatMoney(part.estimatedCost, currency)
-    : 'No price';
+  const price = partPrice(part);
+  const cost = price ? formatMoney(price.amount, currency) : 'No price';
   const installed = part.status === 'installed';
   const urgent = part.priority === 'urgent' && !installed;
   const statusLabel = STATUS_LABELS[part.status];
@@ -50,7 +48,7 @@ export function TrackedPartRow({
         part.partNumber ? `part number ${part.partNumber}` : null,
         `${PRIORITY_LABELS[part.priority]} priority`,
         statusLabel,
-        estimated ? `estimated ${cost}` : 'no price yet',
+        price ? `${price.paid ? 'cost' : 'estimated'} ${cost}` : 'no price yet',
       ]
         .filter(Boolean)
         .join(', ')}
@@ -88,7 +86,7 @@ export function TrackedPartRow({
       </View>
       <Text
         weight="medium"
-        tone={installed ? 'dim' : estimated ? 'default' : 'muted'}
+        tone={installed ? 'dim' : price ? 'default' : 'muted'}
         style={[tabularNums, styles.cost]}
       >
         {cost}
